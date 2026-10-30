@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
-import { BOT_DEFS } from '../sim/data'
+import { BOT_DEFS, DEPTS } from '../sim/data'
 import { useUI } from '../store'
 import { robots } from './vis'
 
@@ -53,13 +53,21 @@ export function LabelSync() {
         el.key = v.bubble.key
         el.bubble.className = `bubble ${v.bubble.kind}`
         el.bubble.textContent = ''
-        if (v.bubble.kind === 'llm') {
-          const t = document.createElement('span')
-          t.className = 'bubble-tag'
-          t.textContent = '🧠 LLM'
-          el.bubble.append(t)
-        }
-        el.bubble.append(clip(v.bubble.text))
+        const def = BOT_DEFS.find(b => b.id === id)
+        const d = def ? DEPTS[def.dept] : null
+
+        const header = document.createElement('div')
+        header.className = 'bubble-header'
+        header.innerHTML = `<span class="bubble-botname" style="color: ${d?.color || '#5BE3FF'}">${d?.icon || '🤖'} ${def?.name || id}</span>${
+          v.bubble.kind === 'llm' ? '<span class="bubble-badge llm-badge">🧠 AI</span>' :
+          v.bubble.kind === 'warn' ? '<span class="bubble-badge warn-badge">⚠️</span>' :
+          v.bubble.kind === 'good' ? '<span class="bubble-badge good-badge">✨</span>' : ''
+        }`
+        const textSpan = document.createElement('div')
+        textSpan.className = 'bubble-text'
+        textSpan.textContent = clip(v.bubble.text)
+
+        el.bubble.append(header, textSpan)
       }
       el.tag.classList.toggle('sel', id === selected)
       tmp.set(v.pos.x, (showBubble ? 2.35 : 2.2) + v.bob, v.pos.z).project(camera)

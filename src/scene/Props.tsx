@@ -1,16 +1,24 @@
 import { RoundedBox } from '@react-three/drei'
-import { useMemo } from 'react'
+import { useState } from 'react'
 import type { Material } from 'three'
-import { M, glow, tint } from './materials'
+import { sound } from '../audio/sound'
+import { M, tint } from './materials'
 
 type XZ = { x: number; z: number; rot?: number; s?: number }
 
-/** desk whose monitor faces -z (toward the robot sitting behind it) */
+/** desk whose monitor faces -z (toward the robot sitting behind it) - Now interactive with screen click & typing SFX */
 export function Desk({ x, z, color, wide = false }: { x: number; z: number; color: string; wide?: boolean }) {
   const w = wide ? 1.9 : 1.45
-  const screen = useMemo(() => glow(color, 0.9), [color])
+  const [active, setActive] = useState(false)
+
+  const onClickDesk = (e: any) => {
+    e.stopPropagation()
+    sound.playBeep(1200, 0.05)
+    setActive(a => !a)
+  }
+
   return (
-    <group position={[x, 0, z]} rotation-y={Math.PI}>
+    <group position={[x, 0, z]} rotation-y={Math.PI} onClick={onClickDesk}>
       <RoundedBox args={[w, 0.06, 0.78]} radius={0.025} position={[0, 0.74, 0]} material={wide ? M.woodDark : M.white} castShadow receiveShadow />
       <mesh position={[-w / 2 + 0.06, 0.37, 0]} material={M.metal} castShadow><boxGeometry args={[0.05, 0.72, 0.68]} /></mesh>
       <mesh position={[w / 2 - 0.06, 0.37, 0]} material={M.metal} castShadow><boxGeometry args={[0.05, 0.72, 0.68]} /></mesh>
@@ -18,7 +26,10 @@ export function Desk({ x, z, color, wide = false }: { x: number; z: number; colo
       <mesh position={[0, 0.86, -0.2]} material={M.darkMetal}><cylinderGeometry args={[0.025, 0.025, 0.2, 8]} /></mesh>
       <mesh position={[0, 0.77, -0.2]} material={M.darkMetal}><boxGeometry args={[0.24, 0.02, 0.16]} /></mesh>
       <RoundedBox args={[0.82, 0.5, 0.05]} radius={0.02} position={[0, 1.15, -0.22]} material={M.screenFrame} castShadow />
-      <mesh position={[0, 1.15, -0.193]} material={screen}><planeGeometry args={[0.74, 0.42]} /></mesh>
+      <mesh position={[0, 1.15, -0.193]}>
+        <planeGeometry args={[0.74, 0.42]} />
+        <meshStandardMaterial color={active ? '#38BDF8' : color} emissive={active ? '#38BDF8' : color} emissiveIntensity={active ? 2.5 : 1.2} />
+      </mesh>
       {/* keyboard + mug */}
       <mesh position={[0, 0.78, 0.12]} material={M.offWhite}><boxGeometry args={[0.5, 0.02, 0.16]} /></mesh>
       <mesh position={[w / 2 - 0.22, 0.82, 0.1]} material={tint(color)} castShadow><cylinderGeometry args={[0.05, 0.045, 0.1, 12]} /></mesh>

@@ -57,22 +57,74 @@ function ExteriorWall({ alongX, theme }: { alongX: boolean; theme: SceneTheme })
 function Roads({ theme }: { theme: SceneTheme }) {
   const dashes = useMemo(() => {
     const out: { p: [number, number, number]; r: number }[] = []
-    for (let x = -40; x <= 40; x += 2.2) if (Math.abs(x - GATE_X) > 2) out.push({ p: [x, GROUND_Y + 0.012, FRONT_ROAD_Z], r: 0 })
-    for (let z = -40; z <= 40; z += 2.2) if (Math.abs(z - FRONT_ROAD_Z) > 2) out.push({ p: [SIDE_ROAD_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
-    for (let z = FRONT_ROAD_Z + 2.4; z <= 40; z += 2.2) out.push({ p: [GATE_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
+    for (let x = -40; x <= 65; x += 2.2) {
+      if (Math.abs(x - GATE_X) > 2.2 && Math.abs(x - SIDE_ROAD_X) > 2.5) {
+        out.push({ p: [x, GROUND_Y + 0.012, FRONT_ROAD_Z], r: 0 })
+      }
+    }
+    for (let z = -35; z <= 65; z += 2.2) {
+      if (Math.abs(z - FRONT_ROAD_Z) > 2.5) {
+        out.push({ p: [SIDE_ROAD_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
+      }
+    }
+    for (let z = FRONT_ROAD_Z + 2.4; z <= 45; z += 2.2) {
+      out.push({ p: [GATE_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
+    }
     return out
   }, [])
   const road = <meshStandardMaterial color={theme.road} roughness={0.95} />
   const dash = useMemo(() => new MeshBasicMaterial(), [])
   dash.color.set(theme.line)
+
+  // Crosswalk zebra stripes at the 4-way intersection [SIDE_ROAD_X, FRONT_ROAD_Z]
+  const crosswalks = useMemo(() => {
+    const stripes: { p: [number, number, number]; size: [number, number] }[] = []
+    // North crosswalk
+    for (let dx = -1.4; dx <= 1.4; dx += 0.5) {
+      stripes.push({ p: [SIDE_ROAD_X + dx, GROUND_Y + 0.014, FRONT_ROAD_Z - 2.6], size: [0.25, 1.2] })
+    }
+    // South crosswalk
+    for (let dx = -1.4; dx <= 1.4; dx += 0.5) {
+      stripes.push({ p: [SIDE_ROAD_X + dx, GROUND_Y + 0.014, FRONT_ROAD_Z + 2.6], size: [0.25, 1.2] })
+    }
+    // East crosswalk
+    for (let dz = -1.4; dz <= 1.4; dz += 0.5) {
+      stripes.push({ p: [SIDE_ROAD_X + 2.6, GROUND_Y + 0.014, FRONT_ROAD_Z + dz], size: [1.2, 0.25] })
+    }
+    // West crosswalk
+    for (let dz = -1.4; dz <= 1.4; dz += 0.5) {
+      stripes.push({ p: [SIDE_ROAD_X - 2.6, GROUND_Y + 0.014, FRONT_ROAD_Z + dz], size: [1.2, 0.25] })
+    }
+    return stripes
+  }, [])
+
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} position={[0, GROUND_Y + 0.006, FRONT_ROAD_Z]} receiveShadow><planeGeometry args={[90, 3.4]} />{road}</mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[SIDE_ROAD_X, GROUND_Y + 0.005, 0]} receiveShadow><planeGeometry args={[3.4, 90]} />{road}</mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[GATE_X, GROUND_Y + 0.007, (FLOOR.maxZ + 45) / 2]} receiveShadow><planeGeometry args={[2.8, 45 - FLOOR.maxZ]} />{road}</mesh>
+      {/* Main East-West Boulevard */}
+      <mesh rotation-x={-Math.PI / 2} position={[12, GROUND_Y + 0.006, FRONT_ROAD_Z]} receiveShadow>
+        <planeGeometry args={[120, 3.8]} />
+        {road}
+      </mesh>
+      {/* Main North-South Avenue */}
+      <mesh rotation-x={-Math.PI / 2} position={[SIDE_ROAD_X, GROUND_Y + 0.005, 14]} receiveShadow>
+        <planeGeometry args={[3.8, 120]} />
+        {road}
+      </mesh>
+      {/* Delivery Bay Road into RoboCorp */}
+      <mesh rotation-x={-Math.PI / 2} position={[GATE_X, GROUND_Y + 0.007, (FLOOR.maxZ + 45) / 2]} receiveShadow>
+        <planeGeometry args={[2.8, 45 - FLOOR.maxZ]} />
+        {road}
+      </mesh>
+      {/* Road Dashes */}
       {dashes.map((d, i) => (
         <mesh key={i} rotation-x={-Math.PI / 2} rotation-z={d.r} position={d.p} material={dash}>
           <planeGeometry args={[1.0, 0.1]} />
+        </mesh>
+      ))}
+      {/* Zebra Crosswalk Stripes */}
+      {crosswalks.map((c, i) => (
+        <mesh key={`cw-${i}`} rotation-x={-Math.PI / 2} position={c.p} material={dash}>
+          <planeGeometry args={c.size} />
         </mesh>
       ))}
     </group>
@@ -98,11 +150,25 @@ function Parking({ theme }: { theme: SceneTheme }) {
 
 function Greenery() {
   const trees: [number, number, number][] = [
+    // RoboCorp perimeter
     [-11.4, -7, 1.1], [-11.6, -3.4, 0.9], [-11.3, 0.4, 1.2], [-11.7, 4, 1], [-11.2, 7.6, 0.95],
     [-7, -10.2, 1], [-2.6, -10.6, 1.2], [1.8, -10.1, 0.9], [6.2, -10.5, 1.1], [10.4, -10.2, 1],
     [10.9, -6, 1.1], [10.6, -1.8, 0.9], [11, 2.2, 1], [-10.6, 11.2, 1], [9.9, 11.4, 1.1],
+    // RoboBistro side
+    [16.5, -8.0, 1.0], [16.5, -3.5, 0.9], [16.5, 2.0, 1.1], [35.0, -8.0, 1.0], [35.0, 0, 1.1], [35.0, 7.0, 0.95],
+    // RoboStudio side
+    [-11.5, 22.0, 1.0], [-11.5, 34.0, 1.1], [7.0, 36.0, 1.0],
+    // RoboFashion side
+    [16.5, 22.0, 1.0], [16.5, 34.0, 0.95], [35.0, 22.0, 1.1], [35.0, 34.0, 1.0],
+    // Central intersection greenery
+    [10.0, 17.5, 1.2], [17.0, 17.5, 1.2], [10.0, 10.5, 1.1], [17.0, 10.5, 1.1]
   ]
-  const bushes: [number, number][] = [[-10.2, -8.9], [-9.9, 9.6], [9.8, 9.4], [10.3, -8.8], [-4.9, -9.1], [3.4, -9.2], [4.6, 9.6], [-10.3, 1.9]]
+  const bushes: [number, number][] = [
+    [-10.2, -8.9], [-9.9, 9.6], [9.8, 9.4], [10.3, -8.8], [-4.9, -9.1], [3.4, -9.2], [4.6, 9.6], [-10.3, 1.9],
+    [18.0, -7.5], [33.5, -7.5], [18.0, 6.5], [33.5, 6.5],
+    [-10.0, 21.0], [-10.0, 35.0], [6.0, 35.0],
+    [18.0, 21.0], [33.5, 21.0], [18.0, 35.0], [33.5, 35.0]
+  ]
   return (
     <group>
       {trees.map(([x, z, s], i) => <Tree key={i} x={x} z={z} s={s} variant={i} />)}

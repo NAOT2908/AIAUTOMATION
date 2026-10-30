@@ -1,4 +1,10 @@
-import { RuleBrain, type Brain, type Decision, type Maybe } from './brain'
+import { type Brain, type Decision, type Maybe } from './brain'
+import { GeminiBrain } from './geminiBrain'
+import { runSkill } from './skills'
+import type { SkillSim } from './skills/types'
+import type { UpsellArgs, UpsellOut, ComplaintArgs, ComplaintOut } from './skills/sales'
+import type { StockoutOut } from './skills/warehouse'
+import type { ChannelArgs, ChannelOut } from './skills/marketing'
 import {
   APPROVAL_LIMIT, BOT_DEFS, CUSTOMERS, DEPTS, PRODUCTS, PROFIT_TARGET, START_CASH, SUPPLIERS, VIP_CUSTOMERS, WEEKLY_SALARY,
 } from './data'
@@ -59,8 +65,18 @@ export class Company {
   private run = 0
   private listeners = new Set<(e: SimEvent) => void>()
 
-  constructor(public brain: Brain = new RuleBrain()) {
+  constructor(public brain: Brain = new GeminiBrain()) {
     this.reset()
+  }
+
+  asSkillSim(): SkillSim {
+    return {
+      t: this.t,
+      day: this.day,
+      cash: this.cash,
+      products: this.products,
+      bots: this.bots,
+    }
   }
 
   reset() {
@@ -202,6 +218,15 @@ export class Company {
         if (d.text) this.log('sales', bot, d.text, { llm: d.llm })
         const order: SalesOrder = { so, customer, product, qty, unit: product.price * (1 - d.value), bot }
         this.log('sales', bot, `Báo giá ${so}: ${money(order.unit * qty)}. Khách đồng ý ✓`, { good: true })
+        
+        // Skill: Upsell phụ kiện khi chốt đơn
+        const upsell = runSkill<UpsellArgs, UpsellOut>('upsell', { bot, args: { customer, sku: product.sku, qty } }, this.asSkillSim())
+        if (upsell instanceof Promise) {
+          upsell.then(u => { if (u?.text) this.log('sales', bot, u.text, { llm: true }) })
+        } else if (upsell?.text) {
+          this.log('sales', bot, upsell.text, { llm: true })
+        }
+
         this.handoff(bot, 'wh')
         if (this.t < this.outageUntil) {
           this.log('sales', bot, 'CRM đang lỗi, chưa tra được tồn kho. Chờ IT…', { warn: true })
@@ -226,6 +251,14 @@ export class Company {
       this.satisfaction = Math.max(0, this.satisfaction - 2.5)
       this.log('wh', wh, `Thiếu ${p.name}: cần ${o.qty}, tồn ${p.stock}. Báo Mua hàng`, { warn: true })
       this.log('sales', o.bot, `Báo ${o.customer}: ${o.so} giao trễ vài ngày vì chờ hàng về`, { warn: true })
+
+      // Skill: Xử lý khiếu nại khách hàng
+      const comp = runSkill<ComplaintArgs, ComplaintOut>('handle_complaint', { bot: o.bot, args: { customer: o.customer, sku: p.sku, issue: 'late' } }, this.asSkillSim())
+      if (comp instanceof Promise) {
+        comp.then(c => { if (c?.text) this.log('sales', o.bot, c.text, { llm: true }) })
+      } else if (comp?.text) {
+        this.log('sales', o.bot, comp.text, { llm: true })
+      }
       this.handoff(wh, 'buy')
       this.triggerReorder(p, true)
     }
@@ -373,6 +406,17 @@ export class Company {
     })
     const n = this.bots.length
     this.after(5, () => this.log('hr', hr, `Điểm danh ngày ${this.day}: ${n}/${n} robot có mặt, pin trung bình ${Math.round(this.avgEnergy)}%`))
+
+    // Skill: Dự báo hết hàng mỗi sáng từ thủ kho
+    this.after(10, () => {
+      const wh = this.bot('wh')
+      const stockout = runSkill<Record<string, never>, StockoutOut>('forecast_stockout', { bot: wh, args: {} }, this.asSkillSim())
+      if (stockout instanceof Promise) {
+        stockout.then(s => { if (s?.text) this.log('wh', wh, s.text, { warn: s.value?.urgent, llm: true }) })
+      } else if (stockout?.text) {
+        this.log('wh', wh, stockout.text, { warn: stockout.value?.urgent, llm: true })
+      }
+    })
   }
 
   private endOfDay() {
@@ -393,6 +437,14 @@ export class Company {
     const m = this.bot('mkt')
     if (this.frugal) return this.log('mkt', m, 'CEO yêu cầu tiết kiệm, hoãn chiến dịch hôm nay')
     const p = this.products.slice().sort((a, b) => a.sold - b.sold)[0]
+
+    // Skill: Chọn kênh quảng cáo theo giá bán
+    const channel = runSkill<ChannelArgs, ChannelOut>('choose_channel', { bot: m, args: { sku: p.sku, budget: 1500 } }, this.asSkillSim())
+    if (channel instanceof Promise) {
+      channel.then(c => { if (c?.text) this.log('mkt', m, c.text, { llm: true }) })
+    } else if (channel?.text) {
+      this.log('mkt', m, channel.text, { llm: true })
+    }
     this.decide(this.brain.campaign({ product: p }), d => {
       p.demand = 1.9
       p.demandUntil = this.t + 1440

@@ -4,6 +4,7 @@ import { company } from '../sim/engine'
 import { clock, dayOf } from '../sim/format'
 import type { LogEntry } from '../sim/types'
 import { useUI } from '../store'
+import { Icon } from './Icon'
 
 const Row = memo(function Row({ e, onPick }: { e: LogEntry; onPick: (id: string) => void }) {
   const d = DEPTS[e.dept]
@@ -21,6 +22,7 @@ export function Feed() {
   const filter = useUI(s => s.filter)
   const setFilter = useUI(s => s.setFilter)
   const select = useUI(s => s.select)
+  const toggleFeed = useUI(s => s.toggleFeed)
   const head = company.logs[0]?.id ?? 0
   const rows = useMemo(
     () => company.logs.filter(e => filter === 'all' || e.dept === filter).slice(0, 150),
@@ -40,6 +42,9 @@ export function Feed() {
           ))}
         </div>
         <span className="legend">🧠 LLM: quyết định sẽ giao cho Claude (hiện đang giả lập)</span>
+        <button className="btn-collapse" onClick={toggleFeed} title="Thu gọn Nhật ký hoạt động">
+          <Icon name="chevronDown" size={14} /> Thu gọn
+        </button>
       </div>
       <ol className="feed-list">
         {rows.map(e => <Row key={e.id} e={e} onPick={select} />)}

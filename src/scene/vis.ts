@@ -1,4 +1,5 @@
 import { Color, Vector3 } from 'three'
+import { sound } from '../audio/sound'
 import { DEPTS } from '../sim/data'
 import { company } from '../sim/engine'
 import type { DeptId, Endpoint, LogEntry, SimEvent } from '../sim/types'
@@ -90,6 +91,10 @@ function goHome(v: RobotVis) {
 
 function onLog(e: LogEntry) {
   fx.pins[e.dept] = performance.now()
+  if (e.warn) sound.playWarning()
+  else if (e.good) sound.playCash()
+  else if (e.llm) sound.playBeep(720, 0.1)
+
   const v = e.botId ? robots.get(e.botId) : undefined
   if (!v) return
   v.bubble = {
@@ -131,8 +136,8 @@ function onEvent(e: SimEvent) {
       }
       return
     }
-    case 'truck': fx.trucks++; return
-    case 'party': fx.partyUntil = performance.now() + 7000; return
+    case 'truck': fx.trucks++; sound.playTruck(); return
+    case 'party': fx.partyUntil = performance.now() + 7000; sound.playParty(); return
   }
 }
 
