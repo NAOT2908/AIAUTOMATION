@@ -10,6 +10,9 @@ import { CHARGERS, DESK_Z, ROOM_D, ROOM_W, deptPos } from './layout'
 import { M, glow, signTexture, tint } from './materials'
 import { Bollard, Bookshelf, Cabinet, CoinStacks, Desk, Forklift, Pallet, Plant, Rug, Sofa, Whiteboard } from './Props'
 import { fx } from './vis'
+import { sound } from '../audio/sound'
+import { CoffeeCorner, CompanyTV, SalesTV } from './Gadgets'
+import { Interactive, useWiggle } from './interact'
 
 const deskX = (id: string) => BOT_DEFS.find(b => b.id === id)!.desk
 
@@ -198,6 +201,16 @@ function DockMarkings() {
   )
 }
 
+/** a potted plant that sways when clicked */
+function LivePlant({ x, z, s }: { x: number; z: number; s?: number }) {
+  const { ref, wiggle } = useWiggle()
+  return (
+    <Interactive name="Chậu cây" hint="Bấm để tưới cây" bounce={false} onActivate={wiggle}>
+      <group ref={ref} position={[x, 0, z]}><Plant x={0} z={0} s={s} /></group>
+    </Interactive>
+  )
+}
+
 export function Rooms() {
   const c = (d: DeptId) => DEPTS[d].color
   return (
@@ -206,59 +219,77 @@ export function Rooms() {
         <Rug x={0} z={-0.7} w={3.2} d={2.3} color="#C9C0E6" />
         <Desk x={deskX('ceo')} z={DESK_Z} color={c('ceo')} wide />
         <Bookshelf x={-1.7} z={-1.82} />
-        <Sofa x={1.75} z={0.95} rot={-Math.PI / 2} />
-        <Plant x={1.95} z={-1.7} s={1.1} />
-        <Plant x={-2.1} z={1.65} />
+        <CompanyTV position={[0.75, 1.65, -2.4]} />
+        <Interactive id="lounge" name="Góc tiếp khách" hint="Mục tiêu tháng và tiệc mừng của công ty">
+          <Sofa x={1.75} z={0.95} rot={-Math.PI / 2} />
+        </Interactive>
+        <LivePlant x={1.95} z={-1.7} s={1.1} />
+        <LivePlant x={-2.1} z={1.65} />
       </RoomShell>
 
       <RoomShell dept="acc">
         <Desk x={deskX('acc')} z={DESK_Z} color={c('acc')} />
-        <Cabinet x={-1.95} z={-1.7} />
-        <Cabinet x={-1.3} z={-1.7} />
-        <CoinStacks x={1.5} z={-1.75} />
-        <Plant x={2.05} z={1.6} />
+        <Interactive id="ledger" name="Tủ hồ sơ kế toán" hint="Sổ cái: doanh thu, giá vốn, chi phí, phải thu">
+          <Cabinet x={-1.95} z={-1.7} />
+          <Cabinet x={-1.3} z={-1.7} />
+        </Interactive>
+        <Interactive id="ledger" name="Két tiền" hint="Bấm nghe tiếng tiền · mở sổ cái" onActivate={() => sound.playCash()}>
+          <CoinStacks x={1.5} z={-1.75} />
+        </Interactive>
+        <LivePlant x={2.05} z={1.6} />
       </RoomShell>
 
       <RoomShell dept="hr">
         <Desk x={deskX('hr')} z={DESK_Z} color={c('hr')} />
-        <Chargers />
+        <Interactive id="chargers" name="Trạm sạc pin" hint="Robot nào đang sạc, ai sắp hết pin">
+          <Chargers />
+        </Interactive>
         <Bookshelf x={1.35} z={-1.82} />
-        <Plant x={-2.1} z={1.6} />
+        <CoffeeCorner position={[2.1, 0, -0.45]} />
+        <LivePlant x={-2.1} z={1.6} />
       </RoomShell>
 
       <RoomShell dept="sales">
         <Desk x={deskX('sales1')} z={DESK_Z} color={c('sales')} />
         <Desk x={deskX('sales2')} z={DESK_Z} color={c('sales')} />
-        <Plant x={0} z={-1.88} s={0.75} />
-        <Plant x={2.1} z={1.6} />
-        <Plant x={-2.1} z={1.6} s={0.9} />
+        <SalesTV position={[0, 0, -1.88]} />
+        <LivePlant x={2.1} z={1.6} />
+        <LivePlant x={-2.1} z={1.6} s={0.9} />
       </RoomShell>
 
       <RoomShell dept="wh">
         <Desk x={deskX('wh')} z={DESK_Z} color={c('wh')} />
-        <WarehouseStock />
+        <Interactive id="stock" name="Kệ hàng" hint="Tồn kho từng mặt hàng · đặt hàng ngay">
+          <WarehouseStock />
+        </Interactive>
         <Pallet x={-2.0} z={1.5} boxes={5} />
       </RoomShell>
 
       <RoomShell dept="buy">
         <Desk x={deskX('buy')} z={DESK_Z} color={c('buy')} />
-        <Bookshelf x={1.5} z={-1.82} />
-        <Cabinet x={2.05} z={0.1} rot={-Math.PI / 2} />
-        <Plant x={-2.1} z={1.6} />
+        <Interactive id="suppliers" name="Hồ sơ nhà cung cấp" hint="Bảng giá và thời gian giao của 3 NCC">
+          <Bookshelf x={1.5} z={-1.82} />
+          <Cabinet x={2.05} z={0.1} rot={-Math.PI / 2} />
+        </Interactive>
+        <LivePlant x={-2.1} z={1.6} />
       </RoomShell>
 
       <RoomShell dept="it">
         <Desk x={deskX('it')} z={DESK_Z} color={c('it')} />
-        <ServerRacks />
-        <Plant x={2.1} z={1.6} />
+        <Interactive id="servers" name="Tủ máy chủ" hint="Trạng thái CRM · khởi động lại server">
+          <ServerRacks />
+        </Interactive>
+        <LivePlant x={2.1} z={1.6} />
       </RoomShell>
 
       <RoomShell dept="mkt">
         <Rug x={0.4} z={-0.5} w={2.6} d={2} color="#D3E8B8" />
         <Desk x={deskX('mkt')} z={DESK_Z} color={c('mkt')} />
-        <Whiteboard x={-1.6} z={-1.2} rot={0.5} color={c('mkt')} />
-        <Plant x={2.1} z={1.6} />
-        <Plant x={2.1} z={-1.7} s={0.8} />
+        <Interactive id="campaign" name="Bảng kế hoạch marketing" hint="Sản phẩm bán chạy/chậm · chạy chiến dịch ngay">
+          <Whiteboard x={-1.6} z={-1.2} rot={0.5} color={c('mkt')} />
+        </Interactive>
+        <LivePlant x={2.1} z={1.6} />
+        <LivePlant x={2.1} z={-1.7} s={0.8} />
       </RoomShell>
 
       <RoomShell dept="gate">
@@ -266,7 +297,9 @@ export function Rooms() {
         <Pallet x={-1.75} z={-1.4} boxes={6} />
         <Pallet x={-1.75} z={-0.2} boxes={3} />
         <Pallet x={1.75} z={-1.4} boxes={4} mat={M.brandSoft} />
-        <Forklift x={1.7} z={0.3} rot={-0.6} />
+        <Interactive name="Xe nâng" hint="Bấm còi" onActivate={() => sound.playBeep(330, 0.25)}>
+          <Forklift x={1.7} z={0.3} rot={-0.6} />
+        </Interactive>
         <Bollard x={-1.3} z={1.95} />
         <Bollard x={1.3} z={1.95} />
       </RoomShell>

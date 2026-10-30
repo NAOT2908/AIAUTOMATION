@@ -170,6 +170,56 @@ class SoundManager {
     osc.stop(now + 0.42)
   }
 
+  /** temple bell: a low fundamental plus the inharmonic partials of a bronze bell, long decay */
+  public playBell(volume = 1) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const now = this.ctx.currentTime
+    const base = 98
+    const partials: [number, number, number][] = [[1, 0.5, 5.5], [2.0, 0.22, 4], [2.76, 0.18, 3.2], [5.4, 0.08, 2], [8.9, 0.04, 1.2]]
+    for (const [mult, amp, decay] of partials) {
+      const osc = this.ctx.createOscillator()
+      const gain = this.ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(base * mult, now)
+      // slow beating between the two halves of the bell
+      osc.detune.setValueAtTime(mult === 1 ? 4 : 0, now)
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.exponentialRampToValueAtTime(amp * volume, now + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decay)
+      osc.connect(gain)
+      gain.connect(this.sfxGain)
+      osc.start(now)
+      osc.stop(now + decay + 0.05)
+    }
+  }
+
+  /** wooden fish (mõ): a short hollow knock */
+  public playWoodfish(volume = 1) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const now = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    const gain = this.ctx.createGain()
+    const filter = this.ctx.createBiquadFilter()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(760, now)
+    osc.frequency.exponentialRampToValueAtTime(420, now + 0.07)
+    filter.type = 'bandpass'
+    filter.frequency.value = 650
+    filter.Q.value = 6
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.5 * volume, now + 0.004)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.11)
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(this.sfxGain)
+    osc.start(now)
+    osc.stop(now + 0.13)
+  }
+
   public playParty() {
     if (this.sfxMuted) return
     this.resume()

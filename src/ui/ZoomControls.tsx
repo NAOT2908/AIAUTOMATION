@@ -1,54 +1,33 @@
-import { useUI } from '../store'
+import { useEffect, useState } from 'react'
+import { camNav } from '../scene/Office'
 import { Icon } from './Icon'
 
 export function ZoomControlsOverlay() {
-  const district = useUI(s => s.district)
-  const setDistrict = useUI(s => s.setDistrict)
-
-  const handleZoom = (delta: number) => {
-    // Find canvas and camera
-    const canvas = document.querySelector('canvas')
-    if (!canvas) return
-    // Dispatch wheel event to OrbitControls
-    canvas.dispatchEvent(new WheelEvent('wheel', {
-      deltaY: delta,
-      bubbles: true,
-      cancelable: true,
-    }))
-  }
-
-  const handleReset = () => {
-    setDistrict(district)
-    const canvas = document.querySelector('canvas')
-    if (!canvas) return
-    canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: 0 }))
-  }
+  const [hint, setHint] = useState(true)
+  useEffect(() => {
+    const t = setTimeout(() => setHint(false), 12000)
+    return () => clearTimeout(t)
+  }, [])
 
   return (
-    <div className="zoom-floating-controls" role="toolbar" aria-label="Điều khiển phóng to thu nhỏ">
-      <button
-        className="zoom-btn"
-        onClick={() => handleZoom(-300)}
-        title="Phóng to (+ / Cuộn chuột lên)"
-      >
-        <Icon name="plus" size={15} />
-      </button>
-
-      <button
-        className="zoom-btn"
-        onClick={handleReset}
-        title="Đặt lại góc nhìn chuẩn khu vực"
-      >
-        <Icon name="refresh" size={13} />
-      </button>
-
-      <button
-        className="zoom-btn"
-        onClick={() => handleZoom(300)}
-        title="Thu nhỏ (- / Cuộn chuột xuống)"
-      >
-        <Icon name="minus" size={15} />
-      </button>
-    </div>
+    <>
+      <div className="zoom-floating-controls" role="toolbar" aria-label="Điều khiển bản đồ">
+        <button className="zoom-btn" onClick={() => camNav.zoomBy(1.35)} title="Phóng to (cuộn chuột lên)">
+          <Icon name="plus" size={15} />
+        </button>
+        <button className="zoom-btn" onClick={() => camNav.reset()} title="Về góc nhìn chuẩn của khu vực">
+          <Icon name="refresh" size={13} />
+        </button>
+        <button className="zoom-btn" onClick={() => camNav.zoomBy(1 / 1.35)} title="Thu nhỏ (cuộn chuột xuống)">
+          <Icon name="minus" size={15} />
+        </button>
+      </div>
+      {hint && (
+        <div className="nav-hint" role="note">
+          <b>Kéo chuột trái</b> để di chuyển · <b>chuột phải</b> để xoay · <b>nhấp đúp</b> để bay tới · <b>WASD</b>
+          <button onClick={() => setHint(false)} aria-label="Ẩn hướng dẫn"><Icon name="close" size={12} /></button>
+        </div>
+      )}
+    </>
   )
 }

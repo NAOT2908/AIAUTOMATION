@@ -117,8 +117,8 @@ export function Robot({ id }: { id: string }) {
     <group
       ref={root}
       onClick={e => { e.stopPropagation(); select(id) }}
-      onPointerOver={e => { e.stopPropagation(); vis.hover = true; document.body.style.cursor = 'pointer' }}
-      onPointerOut={() => { vis.hover = false; document.body.style.cursor = '' }}
+      onPointerOver={e => { e.stopPropagation(); vis.hover = true; document.body.classList.add('hover-prop') }}
+      onPointerOut={() => { vis.hover = false; document.body.classList.remove('hover-prop') }}
     >
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0]} material={blob}><planeGeometry args={[1.1, 1.1]} /></mesh>
       {selected && (

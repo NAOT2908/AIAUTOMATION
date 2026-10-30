@@ -3,6 +3,8 @@ import type { DeptId } from './sim/types'
 
 export type Quality = 'high' | 'low'
 export type District = 'all' | 'robocorp' | 'myoffice' | 'bistro' | 'pagoda' | 'club'
+/** clickable furniture in the RoboCorp office */
+export type PropId = 'tv' | 'salesTv' | 'coffee' | 'ledger' | 'chargers' | 'stock' | 'suppliers' | 'servers' | 'campaign' | 'truck' | 'lounge'
 
 interface UIState {
   speed: number
@@ -17,6 +19,10 @@ interface UIState {
   showInspector: boolean
   showFeed: boolean
   district: District
+  /** furniture under the pointer, for the tooltip */
+  hoverProp: { name: string; hint: string } | null
+  /** furniture whose info card is open */
+  openProp: PropId | null
   setSpeed: (s: number) => void
   togglePause: () => void
   select: (id: string) => void
@@ -42,6 +48,8 @@ export const useUI = create<UIState>(set => ({
   showInspector: urlParams ? urlParams.get('hideInspector') !== '1' : true,
   showFeed: urlParams ? urlParams.get('hideFeed') !== '1' : true,
   district: (urlParams?.get('district') as District) || 'all',
+  hoverProp: null,
+  openProp: (urlParams?.get('prop') as PropId | null) ?? null,
   setSpeed: speed => set(s => ({ speed, lastSpeed: speed || s.lastSpeed })),
   togglePause: () => set(s => (s.speed ? { speed: 0, lastSpeed: s.speed } : { speed: s.lastSpeed })),
   select: selected => set({ selected }),

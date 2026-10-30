@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { Material } from 'three'
 import { sound } from '../audio/sound'
 import { M, tint } from './materials'
+import { CarModel } from './Vehicles'
 
 type XZ = { x: number; z: number; rot?: number; s?: number }
 
@@ -157,13 +158,10 @@ export function Forklift({ x, z, rot = 0 }: XZ) {
 }
 
 export function Car({ x, z, rot = 0, color }: XZ & { color: string }) {
+  const kind = (['supercar', 'coupe', 'luxury', 'offroad', 'taxi'] as const)[Math.abs(Math.round(x * 3 + z)) % 5]
   return (
-    <group position={[x, 0, z]} rotation-y={rot}>
-      <RoundedBox args={[0.95, 0.42, 1.9]} radius={0.14} position={[0, 0.36, 0]} material={tint(color, 0.35)} castShadow />
-      <RoundedBox args={[0.82, 0.36, 1.0]} radius={0.12} position={[0, 0.68, -0.08]} material={M.window} castShadow />
-      {[[-0.44, 0.6], [0.44, 0.6], [-0.44, -0.6], [0.44, -0.6]].map(([px, pz], i) => (
-        <mesh key={i} position={[px, 0.18, pz]} rotation-z={Math.PI / 2} material={M.tyre}><cylinderGeometry args={[0.17, 0.17, 0.12, 14]} /></mesh>
-      ))}
+    <group position={[x, -0.1, z]} rotation-y={rot}>
+      <CarModel kind={kind} color={kind === 'taxi' ? '#06B6D4' : color} />
     </group>
   )
 }

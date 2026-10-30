@@ -67,9 +67,6 @@ function Roads({ theme }: { theme: SceneTheme }) {
         out.push({ p: [SIDE_ROAD_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
       }
     }
-    for (let z = FRONT_ROAD_Z + 2.4; z <= 45; z += 2.2) {
-      out.push({ p: [GATE_X, GROUND_Y + 0.012, z], r: Math.PI / 2 })
-    }
     return out
   }, [])
   const road = <meshStandardMaterial color={theme.road} roughness={0.95} />
@@ -111,8 +108,9 @@ function Roads({ theme }: { theme: SceneTheme }) {
         {road}
       </mesh>
       {/* Delivery Bay Road into RoboCorp */}
-      <mesh rotation-x={-Math.PI / 2} position={[GATE_X, GROUND_Y + 0.007, (FLOOR.maxZ + 45) / 2]} receiveShadow>
-        <planeGeometry args={[2.8, 45 - FLOOR.maxZ]} />
+      {/* the delivery bay road only joins the boulevard: it must not cut through the pagoda south of it */}
+      <mesh rotation-x={-Math.PI / 2} position={[GATE_X, GROUND_Y + 0.007, (FLOOR.maxZ + FRONT_ROAD_Z) / 2]} receiveShadow>
+        <planeGeometry args={[2.8, FRONT_ROAD_Z - FLOOR.maxZ]} />
         {road}
       </mesh>
       {/* Road Dashes */}
@@ -211,4 +209,4 @@ export function World({ theme }: { theme: SceneTheme }) {
   )
 }
 
-export { GROUND_Y, GATE_X }
+export { GROUND_Y, GATE_X, FRONT_ROAD_Z as BOULEVARD_Z }

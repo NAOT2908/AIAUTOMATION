@@ -6,6 +6,7 @@ import { useUI } from './store'
 import { Feed } from './ui/Feed'
 import { Icon } from './ui/Icon'
 import { Inspector } from './ui/Inspector'
+import { PropCard, PropTooltip } from './ui/PropCard'
 import { TopBar } from './ui/TopBar'
 import { ZenFloatingBar } from './ui/ZenFloatingBar'
 import { ZoomControlsOverlay } from './ui/ZoomControls'
@@ -56,7 +57,13 @@ export function App() {
       }
     }
     addEventListener('keydown', onKey)
-    return () => { clearInterval(timer); removeEventListener('keydown', onKey) }
+    // the top bar wraps onto a second row on narrower screens: panels below it follow its real height
+    const hud = document.querySelector('.hud')
+    const ro = new ResizeObserver(() => {
+      if (hud) document.documentElement.style.setProperty('--hud-h', `${Math.round(hud.getBoundingClientRect().height)}px`)
+    })
+    if (hud) ro.observe(hud)
+    return () => { clearInterval(timer); removeEventListener('keydown', onKey); ro.disconnect() }
   }, [])
 
   return (
@@ -70,6 +77,8 @@ export function App() {
       <TopBar />
       <Inspector />
       <Feed />
+      <PropCard />
+      <PropTooltip />
       <ZoomControlsOverlay />
 
       {/* Floating edge tabs when panels are collapsed */}

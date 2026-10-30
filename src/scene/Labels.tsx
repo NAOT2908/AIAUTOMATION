@@ -12,6 +12,8 @@ import { robots } from './vis'
 interface LabelEls { bubble: HTMLDivElement; tag: HTMLDivElement; key: number }
 const els = new Map<string, LabelEls>()
 const tmp = new Vector3()
+const BUBBLE_MIN_ZOOM = 34
+const MAX_BUBBLES = 3
 const clip = (s: string) => (s.length > 90 ? s.slice(0, 88) + '…' : s)
 
 /** DOM layer, rendered on top of the canvas */
@@ -41,10 +43,24 @@ export function LabelSync() {
   useFrame(() => {
     const now = performance.now()
     const selected = useUI.getState().selected
+    // no speech bubbles from far away; up close only the 3 newest that don't overlap each other
+    const allowed = new Set<string>()
+    if (camera.zoom >= BUBBLE_MIN_ZOOM) {
+      const placed: [number, number][] = []
+      const live = [...robots.values()].filter(v => v.bubble.until > now).sort((a, b) => b.bubble.until - a.bubble.until)
+      for (const v of live) {
+        if (allowed.size >= MAX_BUBBLES) break
+        tmp.set(v.pos.x, 2.35 + v.bob, v.pos.z).project(camera)
+        const x = (tmp.x * 0.5 + 0.5) * size.width, y = (-tmp.y * 0.5 + 0.5) * size.height
+        if (placed.some(([px, py]) => Math.abs(px - x) < 230 && Math.abs(py - y) < 80)) continue
+        placed.push([x, y])
+        allowed.add(v.id)
+      }
+    }
     for (const [id, el] of els) {
       const v = robots.get(id)
       if (!v) continue
-      const showBubble = v.bubble.until > now
+      const showBubble = allowed.has(id)
       const showTag = !showBubble && (v.hover || id === selected)
       el.bubble.hidden = !showBubble
       el.tag.hidden = !showTag

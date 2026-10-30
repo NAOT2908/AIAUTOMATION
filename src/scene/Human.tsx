@@ -1,11 +1,25 @@
-import { RoundedBox } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef, useState } from 'react'
-import { Group, MeshStandardMaterial } from 'three'
+import { CapsuleGeometry, Group, SphereGeometry, TorusGeometry } from 'three'
 import { sound } from '../audio/sound'
-import { glow } from './materials'
+import { M, glow, tint } from './materials'
 
-export type HumanRole = 'monk' | 'guest' | 'dancer' | 'office'
+export type HumanRole = 'monk' | 'buddhist' | 'guest' | 'dancer' | 'office' | 'chef'
+export type HumanAction =
+  | 'idle' | 'walk' | 'type' | 'eat' | 'dance'
+  /** standing with palms together (chắp tay) */
+  | 'bow'
+  /** lotus seat, palms together, slow breathing */
+  | 'meditate'
+  /** kneeling full bows (lạy) */
+  | 'prostrate'
+  /** lotus seat, tapping the wooden fish (gõ mõ) on the beat */
+  | 'chant'
+  /** standing at the bell, pulling the striker log */
+  | 'ring'
+  /** sitting on a chair or stool */
+  | 'sit'
+export type Hair = 'short' | 'bun' | 'long' | 'bald' | 'cap'
 
 interface HumanProps {
   pos: [number, number, number]
@@ -15,196 +29,258 @@ interface HumanProps {
   skinTone?: string
   shirtColor?: string
   pantsColor?: string
-  action?: 'bow' | 'eat' | 'dance' | 'type' | 'idle'
+  hair?: Hair
+  action?: HumanAction
+  /** seat height for 'sit' / 'eat' */
+  seat?: number
+  /** beat period in seconds for 'chant' (shared with the pagoda's sound) */
+  beat?: number
 }
 
+/* shared geometry: every person reuses the same handful of buffers */
+const G = {
+  head: new SphereGeometry(0.27, 24, 18),
+  hairCap: new SphereGeometry(0.285, 24, 14, 0, Math.PI * 2, 0, Math.PI / 1.85),
+  bun: new SphereGeometry(0.1, 12, 10),
+  eye: new SphereGeometry(0.032, 10, 8),
+  glint: new SphereGeometry(0.011, 6, 6),
+  ear: new SphereGeometry(0.05, 10, 8),
+  limb: new CapsuleGeometry(0.068, 0.2, 6, 12),
+  leg: new CapsuleGeometry(0.078, 0.24, 6, 12),
+  hand: new SphereGeometry(0.058, 10, 8),
+  shoe: new CapsuleGeometry(0.06, 0.1, 4, 10),
+  mouth: new TorusGeometry(0.035, 0.008, 6, 12, Math.PI),
+  beads: new TorusGeometry(0.15, 0.022, 8, 24),
+}
+const ROBE = { monk: '#8A5A33', saffron: '#C9781E', lam: '#7E93AB' }
+const HAIR = '#1E1A17'
+const rad = (d: number) => (d * Math.PI) / 180
+
+function hash(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h) }
+
 /**
- * 3D Chibi Human Model (Phong cách Chibi cách điệu từ my-office)
- * Có đầu tóc, khuôn mặt, biểu cảm, thân áo, quần, giày, cử động IK tay và đầu
+ * Chibi person with a proper little rig: hips, a torso that can bend, shoulders, legs.
+ * Proportions and the "big head, small body" read follow khanh020905/my-office's chibi-rig.
  */
 export function ChibiHuman({
-  pos,
-  role,
-  rot = 0,
-  skinTone = '#F7CBAA',
-  shirtColor = '#2563EB',
-  pantsColor = '#1E293B',
-  action = 'idle',
+  pos, role, rot = 0, name = '', skinTone = '#F3C9A5', shirtColor = '#2563EB', pantsColor = '#334155',
+  hair, action = 'idle', seat = 0.45, beat = 0.9,
 }: HumanProps) {
-  const rootRef = useRef<Group>(null)
-  const headRef = useRef<Group>(null)
-  const armLRef = useRef<Group>(null)
-  const armRRef = useRef<Group>(null)
-  const [greeted, setGreeted] = useState(false)
+  const root = useRef<Group>(null)
+  const hips = useRef<Group>(null)
+  const upper = useRef<Group>(null)
+  const head = useRef<Group>(null)
+  const armL = useRef<Group>(null)
+  const armR = useRef<Group>(null)
+  const legL = useRef<Group>(null)
+  const legR = useRef<Group>(null)
+  const [greet, setGreet] = useState(false)
 
-  const mats = useMemo(() => ({
-    skin: new MeshStandardMaterial({ color: skinTone, roughness: 0.6 }),
-    shirt: new MeshStandardMaterial({ color: shirtColor, roughness: 0.7 }),
-    pants: new MeshStandardMaterial({ color: pantsColor, roughness: 0.8 }),
-    shoes: new MeshStandardMaterial({ color: '#0F172A', roughness: 0.5 }),
-    hairBlack: new MeshStandardMaterial({ color: '#18181B', roughness: 0.9 }),
-    hairBrown: new MeshStandardMaterial({ color: '#451A03', roughness: 0.9 }),
-    robeOrange: new MeshStandardMaterial({ color: '#EA580C', roughness: 0.8 }), // Y áo nâu sồng/cà sa
-    robeGrey: new MeshStandardMaterial({ color: '#78716C', roughness: 0.8 }), // Áo lam phật tử
-    eyes: new MeshStandardMaterial({ color: '#18181B', roughness: 0.2 }),
-    beads: new MeshStandardMaterial({ color: '#78350F', roughness: 0.7 }),
-    heart: glow('#EF4444', 3.0),
-  }), [skinTone, shirtColor, pantsColor])
-
-  const onClickHuman = (e: any) => {
-    e.stopPropagation()
-    sound.playBeep(role === 'monk' ? 520 : 660, 0.15)
-    setGreeted(true)
-    setTimeout(() => setGreeted(false), 2200)
-  }
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime
-
-    if (action === 'dance') {
-      // Nhảy quẩy vũ trường
-      if (rootRef.current) {
-        rootRef.current.position.y = pos[1] + Math.abs(Math.sin(t * 6.0)) * 0.12
-        rootRef.current.rotation.y = rot + Math.sin(t * 3.0) * 0.35
-      }
-      if (armLRef.current) armLRef.current.rotation.z = Math.sin(t * 6.0) * 0.8 + 1.2
-      if (armRRef.current) armRRef.current.rotation.z = -Math.sin(t * 6.0) * 0.8 - 1.2
-      if (headRef.current) headRef.current.rotation.x = Math.sin(t * 6.0) * 0.2
-    } else if (action === 'bow') {
-      // Phật tử lạy/chắp tay tụng kinh
-      if (headRef.current) {
-        headRef.current.rotation.x = Math.sin(t * 1.8) * 0.15 + 0.1
-      }
-      if (armLRef.current && armRRef.current) {
-        armLRef.current.rotation.x = -0.7 + Math.sin(t * 1.8) * 0.05
-        armRRef.current.rotation.x = -0.7 + Math.sin(t * 1.8) * 0.05
-      }
-    } else if (action === 'eat') {
-      // Ăn mì ramen/uống cafe
-      if (headRef.current) {
-        headRef.current.rotation.x = Math.sin(t * 2.5) * 0.12 + 0.1
-      }
-      if (armRRef.current) {
-        armRRef.current.rotation.x = -0.9 + Math.sin(t * 2.5) * 0.2
-      }
-    } else {
-      // Đứng thở nhẹ nhàng
-      if (headRef.current) headRef.current.rotation.y = Math.sin(t * 1.2) * 0.1
+  const robed = role === 'monk' || role === 'buddhist'
+  const seed = useMemo(() => hash(name + pos.join(',')), [name, pos])
+  const style: Hair = hair ?? (role === 'monk' ? 'bald' : role === 'chef' ? 'cap' : (['short', 'bun', 'long', 'short'] as Hair[])[seed % 4])
+  const mats = useMemo(() => {
+    const robe = role === 'monk' ? (seed % 3 === 0 ? ROBE.saffron : ROBE.monk) : ROBE.lam
+    return {
+      skin: tint(skinTone, 0.6),
+      top: tint(robed ? robe : role === 'chef' ? '#F8FAFC' : shirtColor, 0.75),
+      bottom: tint(robed ? robe : pantsColor, 0.8),
+      hair: tint(HAIR, 0.85),
+      shoe: tint(robed ? '#3B2A20' : '#22262E', 0.6),
+      eye: tint('#15171C', 0.25),
+      glint: M.white,
+      blush: tint('#F6A5A5', 0.9),
+      heart: glow('#FF4D6D', 2.6),
     }
+  }, [role, robed, seed, skinTone, shirtColor, pantsColor])
+
+  const seated = action === 'meditate' || action === 'chant' || action === 'sit' || action === 'eat'
+  const lotus = action === 'meditate' || action === 'chant'
+  const phase = (seed % 100) / 17
+
+  useFrame(state => {
+    const t = state.clock.elapsedTime + phase
+    const r = root.current, h = hips.current, u = upper.current, hd = head.current
+    const aL = armL.current, aR = armR.current, lL = legL.current, lR = legR.current
+    if (!r || !h || !u || !hd || !aL || !aR || !lL || !lR) return
+    // defaults
+    let hipY = 0.46, pitch = 0, headX = 0, headY = 0, headZ = 0
+    let al: [number, number, number] = [0, 0, 0.08], ar: [number, number, number] = [0, 0, -0.08]
+    let ll: [number, number] = [0, 0], lr: [number, number] = [0, 0]
+    let bob = 0, yaw = 0
+
+    const palms = (): void => { al = [-0.98, 0, 0.79]; ar = [-0.98, 0, -0.79] }
+
+    switch (action) {
+      case 'walk': {
+        const s = Math.sin(t * 7)
+        ll = [s * 0.55, 0]; lr = [-s * 0.55, 0]
+        al = [-s * 0.5, 0, 0.08]; ar = [s * 0.5, 0, -0.08]
+        bob = Math.abs(Math.cos(t * 7)) * 0.04
+        break
+      }
+      case 'type':
+        al = [-1.2 + Math.sin(t * 16) * 0.08, 0, 0.35]; ar = [-1.2 + Math.sin(t * 16 + 1.4) * 0.08, 0, -0.35]
+        headX = 0.12
+        break
+      case 'dance': {
+        bob = Math.abs(Math.sin(t * 6)) * 0.14
+        yaw = Math.sin(t * 3) * 0.4
+        al = [-0.3, 0, 2.2 + Math.sin(t * 6) * 0.5]; ar = [-0.3, 0, -2.2 - Math.sin(t * 6) * 0.5]
+        ll = [Math.sin(t * 6) * 0.3, 0]; lr = [-Math.sin(t * 6) * 0.3, 0]
+        headX = Math.sin(t * 6) * 0.15
+        break
+      }
+      case 'bow':
+        palms()
+        pitch = 0.08 + Math.max(0, Math.sin(t * 0.9)) * 0.35
+        headX = 0.15
+        break
+      case 'meditate':
+        palms()
+        bob = Math.sin(t * 0.8) * 0.008
+        headX = 0.12 + Math.sin(t * 0.8) * 0.03
+        break
+      case 'chant': {
+        // left hand raised before the chest, right hand strikes the wooden fish on every beat
+        const k = ((state.clock.elapsedTime % beat) / beat)
+        const strike = k < 0.18 ? k / 0.18 : 1 - Math.min(1, (k - 0.18) / 0.5)
+        al = [-1.15, 0, 0.62]
+        ar = [-0.75 - (1 - strike) * 0.35, 0, -0.32]
+        headX = 0.1 + strike * 0.03
+        break
+      }
+      case 'prostrate': {
+        // stand → kneel → forehead to the floor, every ~6 s
+        const k = (t % 6) / 6
+        const down = k < 0.3 ? k / 0.3 : k < 0.6 ? 1 : 1 - (k - 0.6) / 0.4
+        const e = down * down * (3 - 2 * down)
+        hipY = 0.46 - e * 0.22
+        ll = [e * 1.55, 0]; lr = [e * 1.55, 0]
+        pitch = e * 1.25
+        palms()
+        if (e > 0.6) { al = [-2.4, 0, 0.35]; ar = [-2.4, 0, -0.35] }
+        break
+      }
+      case 'ring': {
+        // pull back, then swing the log into the bell (period matches the bell tower)
+        const k = (state.clock.elapsedTime % 8) / 8
+        const pull = k < 0.4 ? k / 0.4 : k < 0.5 ? 1 - (k - 0.4) / 0.1 : 0
+        al = [-1.45 + pull * 0.4, 0, 0.2]; ar = [-1.45 + pull * 0.4, 0, -0.2]
+        pitch = -pull * 0.25
+        break
+      }
+      case 'eat':
+        ar = [-1.35 + Math.max(0, Math.sin(t * 2.4)) * 0.6, 0, -0.2]
+        al = [-1.0, 0, 0.3]
+        headX = 0.18 + Math.max(0, Math.sin(t * 2.4)) * 0.08
+        break
+      case 'sit':
+        al = [-0.5, 0, 0.18]; ar = [-0.5, 0, -0.18]
+        headY = Math.sin(t * 0.6) * 0.3
+        break
+      default:
+        headY = Math.sin(t * 0.7) * 0.2
+        bob = Math.sin(t * 1.6) * 0.006
+    }
+
+    if (seated) {
+      if (lotus) {
+        hipY = 0.2
+        ll = [-1.45, -0.55]; lr = [-1.45, 0.55]
+      } else {
+        hipY = seat + 0.04
+        ll = [-1.5, 0]; lr = [-1.5, 0]
+      }
+    }
+
+    h.position.y = hipY + bob
+    u.rotation.x = pitch
+    hd.rotation.set(headX, headY, headZ)
+    aL.rotation.set(al[0], al[1], al[2])
+    aR.rotation.set(ar[0], ar[1], ar[2])
+    lL.rotation.set(ll[0], ll[1], 0)
+    lR.rotation.set(lr[0], lr[1], 0)
+    r.rotation.y = rot + yaw
   })
 
-  const isMonk = role === 'monk'
-  const isLam = role === 'monk' && shirtColor.includes('lam')
+  const onClick = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation()
+    sound.playBeep(robed ? 520 : 680, 0.12)
+    setGreet(true)
+    setTimeout(() => setGreet(false), 2000)
+  }
+
+  const leg = (side: -1 | 1, ref: typeof legL) => (
+    <group ref={ref} position={[side * 0.1, 0, 0]}>
+      <mesh geometry={G.leg} material={mats.bottom} position={[0, -0.2, 0]} castShadow />
+      <mesh geometry={G.shoe} material={mats.shoe} position={[0, -0.41, 0.05]} rotation-x={Math.PI / 2} castShadow />
+    </group>
+  )
+  const arm = (side: -1 | 1, ref: typeof armL) => (
+    <group ref={ref} position={[side * 0.25, 0.36, 0]}>
+      <mesh geometry={G.limb} material={mats.top} position={[0, -0.14, 0]} castShadow />
+      <mesh geometry={G.hand} material={mats.skin} position={[0, -0.29, 0]} />
+    </group>
+  )
 
   return (
-    <group ref={rootRef} position={pos} rotation-y={rot} onClick={onClickHuman}>
-      {/* 1. Đôi chân & Giày */}
-      {[-0.1, 0.1].map((x, i) => (
-        <group key={`leg-${i}`} position={[x, 0, 0]}>
-          <mesh position={[0, 0.22, 0]} castShadow>
-            <capsuleGeometry args={[0.07, 0.25, 6, 12]} />
-            <primitive object={isMonk ? mats.robeOrange : mats.pants} attach="material" />
+    <group ref={root} position={pos} rotation-y={rot} onClick={onClick}>
+      <group ref={hips} position={[0, 0.46, 0]}>
+        {leg(-1, legL)}
+        {leg(1, legR)}
+        {/* lap of the robe when sitting cross-legged; a long skirt when standing */}
+        {robed && (lotus
+          ? <mesh material={mats.bottom} position={[0, -0.04, 0.12]} scale={[0.36, 0.11, 0.3]} castShadow><sphereGeometry args={[1, 20, 12]} /></mesh>
+          : !seated && <mesh material={mats.bottom} position={[0, -0.2, 0]} castShadow><cylinderGeometry args={[0.2, 0.27, 0.46, 20]} /></mesh>)}
+
+        <group ref={upper}>
+          {/* torso */}
+          <mesh material={mats.top} position={[0, 0.2, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.22, 0.42, 20]} />
           </mesh>
-          <mesh position={[0, 0.05, 0.04]} castShadow>
-            <boxGeometry args={[0.13, 0.08, 0.18]} />
-            <primitive object={mats.shoes} attach="material" />
-          </mesh>
-        </group>
-      ))}
+          <mesh material={mats.top} position={[0, 0.41, 0]} scale={[1, 0.45, 0.85]} castShadow><sphereGeometry args={[0.2, 18, 10]} /></mesh>
+          {/* monk's outer robe: a sash across one shoulder */}
+          {role === 'monk' && (
+            <mesh material={tint('#6E4426', 0.8)} position={[0.02, 0.24, 0]} rotation-z={rad(-28)} scale={[1, 1, 1.08]}><cylinderGeometry args={[0.215, 0.225, 0.13, 20]} /></mesh>
+          )}
+          {robed && <mesh geometry={G.beads} material={tint('#4A2C17', 0.6)} position={[0, 0.3, 0.12]} rotation-x={rad(70)} />}
+          {role === 'chef' && <mesh material={tint('#E2E8F0', 0.7)} position={[0, 0.15, 0.19]} scale={[1, 1, 0.3]}><boxGeometry args={[0.3, 0.34, 0.1]} /></mesh>}
+          {arm(-1, armL)}
+          {arm(1, armR)}
 
-      {/* 2. Thân người (Áo sơ mi/Áo lam/Áo thun) */}
-      <mesh position={[0, 0.58, 0]} castShadow>
-        <RoundedBox args={[0.38, 0.44, 0.24]} radius={0.06} castShadow>
-          <primitive object={isMonk ? (isLam ? mats.robeGrey : mats.robeOrange) : mats.shirt} attach="material" />
-        </RoundedBox>
-      </mesh>
-
-      {/* Chuỗi tràng hạt nếu là Phật tử/Nhà sư */}
-      {isMonk && (
-        <mesh position={[0, 0.65, 0.13]}>
-          <torusGeometry args={[0.16, 0.025, 8, 20]} />
-          <primitive object={mats.beads} attach="material" />
-        </mesh>
-      )}
-
-      {/* 3. Đôi tay */}
-      <group ref={armLRef} position={[-0.23, 0.72, 0]}>
-        <mesh position={[0, -0.16, isMonk ? 0.08 : 0]} rotation-x={isMonk ? -0.5 : 0} castShadow>
-          <capsuleGeometry args={[0.05, 0.22, 6, 12]} />
-          <primitive object={isMonk ? mats.robeOrange : mats.shirt} attach="material" />
-        </mesh>
-        <mesh position={[0, -0.3, isMonk ? 0.15 : 0]}>
-          <sphereGeometry args={[0.05, 8, 8]} />
-          <primitive object={mats.skin} attach="material" />
-        </mesh>
-      </group>
-
-      <group ref={armRRef} position={[0.23, 0.72, 0]}>
-        <mesh position={[0, -0.16, isMonk ? 0.08 : 0]} rotation-x={isMonk ? -0.5 : 0} castShadow>
-          <capsuleGeometry args={[0.05, 0.22, 6, 12]} />
-          <primitive object={isMonk ? mats.robeOrange : mats.shirt} attach="material" />
-        </mesh>
-        <mesh position={[0, -0.3, isMonk ? 0.15 : 0]}>
-          <sphereGeometry args={[0.05, 8, 8]} />
-          <primitive object={mats.skin} attach="material" />
-        </mesh>
-      </group>
-
-      {/* 4. Đầu Chibi & Tóc & Khuôn mặt */}
-      <group ref={headRef} position={[0, 0.98, 0]}>
-        {/* Khuôn mặt tròn Chibi dễ thương */}
-        <mesh castShadow>
-          <sphereGeometry args={[0.24, 18, 18]} />
-          <primitive object={mats.skin} attach="material" />
-        </mesh>
-
-        {/* Tóc (Nếu không phải sư thầy cạo đầu) */}
-        {!isMonk ? (
-          <group position={[0, 0.08, -0.02]}>
-            <mesh position={[0, 0.12, 0]} castShadow>
-              <sphereGeometry args={[0.25, 16, 16, 0, Math.PI * 2, 0, Math.PI / 1.7]} />
-              <primitive object={mats.hairBlack} attach="material" />
-            </mesh>
-            {/* Mái tóc trước trán */}
-            <mesh position={[0, 0.12, 0.2]}>
-              <boxGeometry args={[0.26, 0.08, 0.08]} />
-              <primitive object={mats.hairBlack} attach="material" />
-            </mesh>
+          <group ref={head} position={[0, 0.75, 0]}>
+            <mesh geometry={G.head} material={mats.skin} castShadow />
+            {[-1, 1].map(s => <mesh key={s} geometry={G.ear} material={mats.skin} position={[s * 0.265, -0.02, 0]} />)}
+            {/* face */}
+            {[-1, 1].map(s => (
+              <group key={s} position={[s * 0.095, 0.0, 0.245]}>
+                <mesh geometry={G.eye} material={mats.eye} scale={[1, 1.25, 0.6]} />
+                <mesh geometry={G.glint} material={mats.glint} position={[0.01, 0.014, 0.018]} />
+                <mesh material={mats.hair} position={[0, 0.07, -0.01]} rotation-z={s * -0.12}><boxGeometry args={[0.07, 0.014, 0.012]} /></mesh>
+                <mesh material={mats.blush} position={[s * 0.06, -0.06, -0.012]} scale={[1, 0.6, 0.3]}><sphereGeometry args={[0.032, 8, 6]} /></mesh>
+              </group>
+            ))}
+            <mesh geometry={G.mouth} material={tint('#9B4B4B', 0.6)} position={[0, -0.08, 0.255]} rotation-z={Math.PI} />
+            {/* hair */}
+            {style === 'short' && <mesh geometry={G.hairCap} material={mats.hair} position={[0, 0.02, -0.02]} rotation-x={-0.25} castShadow />}
+            {style === 'bun' && (<>
+              <mesh geometry={G.hairCap} material={mats.hair} position={[0, 0.02, -0.02]} rotation-x={-0.25} castShadow />
+              <mesh geometry={G.bun} material={mats.hair} position={[0, 0.2, -0.2]} castShadow />
+            </>)}
+            {style === 'long' && (<>
+              <mesh geometry={G.hairCap} material={mats.hair} position={[0, 0.02, -0.02]} rotation-x={-0.25} castShadow />
+              <mesh material={mats.hair} position={[0, -0.18, -0.12]} scale={[1, 1.4, 0.55]} castShadow><sphereGeometry args={[0.24, 16, 12]} /></mesh>
+            </>)}
+            {style === 'cap' && (<>
+              <mesh material={M.white} position={[0, 0.24, 0]} castShadow><cylinderGeometry args={[0.2, 0.22, 0.26, 18]} /></mesh>
+              <mesh material={M.white} position={[0, 0.38, 0]} scale={[1, 0.55, 1]}><sphereGeometry args={[0.24, 16, 10]} /></mesh>
+            </>)}
           </group>
-        ) : (
-          /* Nón lá hoặc chấm giới tử trên đầu sư */
-          <mesh position={[0, 0.25, 0]}>
-            <coneGeometry args={[0.34, 0.14, 16]} />
-            <meshStandardMaterial color="#D97706" roughness={0.9} />
-          </mesh>
-        )}
-
-        {/* Đôi mắt đen to tròn Chibi */}
-        {[-0.08, 0.08].map((x, i) => (
-          <mesh key={`eye-${i}`} position={[x, 0.02, 0.22]}>
-            <sphereGeometry args={[0.025, 8, 8]} />
-            <primitive object={mats.eyes} attach="material" />
-          </mesh>
-        ))}
-
-        {/* Má hồng hào */}
-        {[-0.13, 0.13].map((x, i) => (
-          <mesh key={`blush-${i}`} position={[x, -0.05, 0.19]}>
-            <circleGeometry args={[0.035, 12]} />
-            <meshBasicMaterial color="#FDA4AF" transparent opacity={0.6} />
-          </mesh>
-        ))}
+        </group>
       </group>
 
-      {/* Biểu cảm tim hoặc lời chào khi click */}
-      {greeted && (
-        <group position={[0, 1.45, 0]}>
-          <mesh>
-            <sphereGeometry args={[0.1, 12, 12]} />
-            <primitive object={mats.heart} attach="material" />
-          </mesh>
-        </group>
-      )}
+      {greet && <mesh material={mats.heart} position={[0, 1.75, 0]}><sphereGeometry args={[0.09, 12, 10]} /></mesh>}
     </group>
   )
 }

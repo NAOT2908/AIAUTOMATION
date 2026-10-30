@@ -1,9 +1,9 @@
-import { RoundedBox } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef, useState } from 'react'
 import { Group, MeshStandardMaterial } from 'three'
 import { sound } from '../audio/sound'
 import { glow } from './materials'
+import { Traffic } from './Vehicles'
 
 // -------------------------------------------------------------
 // 1. MÈO CÔNG SỞ VÀNG TỰ DO ĐI DẠO & TƯƠNG TÁC (PET MEOW)
@@ -162,95 +162,5 @@ export function RobotVacuum() {
 // 3. XE GIAO HÀNG & XE TAXI XANH SM CHẠY TRÊN ĐƯỜNG PHỐ
 // -------------------------------------------------------------
 export function StreetTraffic() {
-  const carVinFast = useRef<Group>(null) // Taxi Xanh SM (Cyan đặc trưng)
-  const carDelivery = useRef<Group>(null) // Xe tải giao hàng công nghệ
-
-  const mats = useMemo(() => ({
-    xanhSM: new MeshStandardMaterial({ color: '#06B6D4', roughness: 0.2, metalness: 0.3 }), // Xanh lơ Xanh SM
-    white: new MeshStandardMaterial({ color: '#F8FAFC', roughness: 0.3 }),
-    darkGlass: new MeshStandardMaterial({ color: '#0F172A', roughness: 0.1 }),
-    wheel: new MeshStandardMaterial({ color: '#111827', roughness: 0.8 }),
-    headlight: glow('#FFFBEB', 2.5),
-    taillight: glow('#EF4444', 2.0),
-    deliveryOrange: new MeshStandardMaterial({ color: '#F97316', roughness: 0.4 }),
-  }), [])
-
-  useFrame((_, dt) => {
-    // Taxi Xanh SM chạy dọc trục Đông - Tây (z = 14)
-    if (carVinFast.current) {
-      carVinFast.current.position.x += dt * 9.0
-      if (carVinFast.current.position.x > 55) carVinFast.current.position.x = -45
-    }
-
-    // Xe giao hàng chạy dọc trục Bắc - Nam (x = 13.4)
-    if (carDelivery.current) {
-      carDelivery.current.position.z += dt * 8.0
-      if (carDelivery.current.position.z > 55) carDelivery.current.position.z = -35
-    }
-  })
-
-  return (
-    <group>
-      {/* 1. Taxi Xanh SM (VinFast Sedan VF) trên đại lộ z = 14 */}
-      <group ref={carVinFast} position={[-20, 0, 14.8]} rotation-y={Math.PI / 2}>
-        {/* Thân xe */}
-        <RoundedBox args={[1.5, 0.46, 3.2]} radius={0.08} position={[0, 0.32, 0]} castShadow>
-          <primitive object={mats.xanhSM} attach="material" />
-        </RoundedBox>
-        {/* Mui kính xe */}
-        <RoundedBox args={[1.3, 0.42, 1.8]} radius={0.06} position={[0, 0.68, -0.2]} castShadow>
-          <primitive object={mats.darkGlass} attach="material" />
-        </RoundedBox>
-        {/* Mào Taxi trên nóc xe */}
-        <mesh position={[0, 0.94, -0.2]}>
-          <boxGeometry args={[0.42, 0.1, 0.18]} />
-          <primitive object={mats.white} attach="material" />
-        </mesh>
-        {/* 4 Bánh xe */}
-        {[-0.78, 0.78].flatMap(x =>
-          [-1.0, 1.0].map(z => (
-            <mesh key={`wh-${x}-${z}`} position={[x, 0.22, z]} rotation-z={Math.PI / 2} castShadow>
-              <cylinderGeometry args={[0.22, 0.22, 0.16, 16]} />
-              <primitive object={mats.wheel} attach="material" />
-            </mesh>
-          ))
-        )}
-        {/* Đèn pha trước */}
-        {[-0.55, 0.55].map((x, i) => (
-          <mesh key={`hl-${i}`} position={[x, 0.32, 1.62]}>
-            <sphereGeometry args={[0.07, 8, 8]} />
-            <primitive object={mats.headlight} attach="material" />
-          </mesh>
-        ))}
-        {/* Đèn hậu đỏ */}
-        {[-0.55, 0.55].map((x, i) => (
-          <mesh key={`tl-${i}`} position={[x, 0.35, -1.62]}>
-            <boxGeometry args={[0.18, 0.08, 0.02]} />
-            <primitive object={mats.taillight} attach="material" />
-          </mesh>
-        ))}
-      </group>
-
-      {/* 2. Xe Tải Giao Hàng Chuyển Phát trên đại lộ x = 13.4 */}
-      <group ref={carDelivery} position={[12.2, 0, -10]}>
-        {/* Đầu xe tải */}
-        <RoundedBox args={[1.5, 0.85, 1.4]} radius={0.08} position={[0, 0.55, 1.2]} castShadow>
-          <primitive object={mats.white} attach="material" />
-        </RoundedBox>
-        {/* Thùng xe giao hàng màu cam */}
-        <RoundedBox args={[1.65, 1.3, 2.6]} radius={0.06} position={[0, 0.85, -0.8]} castShadow>
-          <primitive object={mats.deliveryOrange} attach="material" />
-        </RoundedBox>
-        {/* 4 Bánh xe tải */}
-        {[-0.85, 0.85].flatMap(x =>
-          [-1.1, 1.0].map(z => (
-            <mesh key={`twh-${x}-${z}`} position={[x, 0.26, z]} rotation-z={Math.PI / 2} castShadow>
-              <cylinderGeometry args={[0.26, 0.26, 0.18, 16]} />
-              <primitive object={mats.wheel} attach="material" />
-            </mesh>
-          ))
-        )}
-      </group>
-    </group>
-  )
+  return <Traffic />
 }

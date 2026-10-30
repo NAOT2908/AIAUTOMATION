@@ -364,9 +364,12 @@ export class Company {
 
   // ---------------------------------------------------------------- support departments
 
+  private outageToken = {}
+
   private startOutage() {
     if (this.t < this.outageUntil) return
     const it = this.bot('it')
+    const token = (this.outageToken = {})
     this.outageUntil = this.t + randInt(50, 110)
     it.status = 'error'
     this.log('it', it, '⚠ Server CRM quá tải, Sales không tra được tồn kho', { warn: true })
@@ -377,6 +380,7 @@ export class Company {
       })
     })
     this.after(this.outageUntil - this.t, () => {
+      if (token !== this.outageToken) return
       if (it.status === 'error') it.status = 'working'
       this.spend(300, 'it', it, 'CRM hoạt động lại ✓ Chi phí khắc phục 300 $', { good: true })
     })
@@ -509,6 +513,43 @@ export class Company {
         if (b.energy < 28 && b.status !== 'charging' && b.status !== 'error') this.sendCharging(b)
       }
     }
+  }
+
+  // ---------------------------------------------------------------- office furniture actions
+
+  /** coffee machine: a small energy boost for everyone who is not on a charger */
+  brewCoffee() {
+    if (this.bankrupt) return
+    this.bots.forEach(b => { if (b.status !== 'charging') b.energy = Math.min(100, b.energy + 8) })
+    this.log('hr', this.bot('hr'), '☕ Pha một ấm cà phê dầu nhớt: +8% pin cho cả công ty', { good: true })
+  }
+
+  /** warehouse rack: order a product now instead of waiting for the reorder point */
+  reorderNow(sku: string) {
+    const p = this.products.find(x => x.sku === sku)
+    if (!p || p.openPO || this.bankrupt) return false
+    this.log('wh', this.bot('wh'), `Quản lý yêu cầu nhập thêm ${p.name} (tồn ${p.stock})`)
+    this.handoff(this.bot('wh'), 'buy')
+    this.triggerReorder(p, false)
+    return true
+  }
+
+  /** server rack: reboot ends an outage at once (and costs less than waiting) */
+  rebootServers() {
+    const it = this.bot('it')
+    if (this.t >= this.outageUntil) {
+      this.log('it', it, 'Kiểm tra theo yêu cầu: mọi máy chủ hoạt động bình thường ✓', { good: true })
+      return
+    }
+    this.outageToken = {}
+    this.outageUntil = this.t
+    it.status = 'working'
+    this.spend(120, 'it', it, '🔁 Khởi động lại server theo lệnh quản lý: CRM chạy lại ngay, chi phí 120 $', { good: true })
+  }
+
+  /** whiteboard: start a marketing campaign now */
+  runCampaign() {
+    if (!this.bankrupt) this.marketing()
   }
 
   // ---------------------------------------------------------------- chaos button
