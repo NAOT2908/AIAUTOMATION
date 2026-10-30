@@ -1,7 +1,8 @@
 import { RoundedBox } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-import { EffectComposer, Bloom, N8AO, SMAA, ToneMapping } from '@react-three/postprocessing'
-import { ToneMappingMode } from 'postprocessing'
+import { BrightnessContrast, EffectComposer, Bloom, HueSaturation, N8AO, SMAA, TiltShift, ToneMapping } from '@react-three/postprocessing'
+import { KernelSize, ToneMappingMode } from 'postprocessing'
+import { useUI } from '../store'
 import { useEffect, useMemo, useRef } from 'react'
 import { Color, Group, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial, Object3D } from 'three'
 import { sound } from '../audio/sound'
@@ -108,15 +109,23 @@ export function Truck() {
   )
 }
 
-/** Ambient occlusion + bloom + ACES tone mapping: the warm, soft "studio" look of my-office */
+/**
+ * Ambient occlusion + bloom + ACES tone mapping (the warm "studio" look of my-office), and in
+ * diorama mode the fake-miniature finish adapted from 3dviz-pro-max's
+ * knowledge.style-tilt-shift-diorama: one horizontal sharp band (~24% of the frame) with blur
+ * ramping symmetrically to the edges, and colour/contrast lifted toward painted plastic.
+ */
 export function Effects() {
+  const diorama = useUI(s => s.diorama)
   return (
     <EffectComposer multisampling={0} enableNormalPass={false}>
       <N8AO aoRadius={1.1} distanceFalloff={0.9} intensity={2.2} quality="medium" halfRes />
       <Bloom mipmapBlur luminanceThreshold={0.92} luminanceSmoothing={0.3} intensity={0.45} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <HueSaturation saturation={diorama ? 0.16 : 0} />
+      <BrightnessContrast contrast={diorama ? 0.08 : 0} />
+      <TiltShift focusArea={diorama ? 0.24 : 2} feather={0.3} offset={0.02} kernelSize={KernelSize.LARGE} />
       <SMAA />
     </EffectComposer>
   )
 }
-

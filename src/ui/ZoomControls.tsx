@@ -13,6 +13,7 @@ const RAIN_LABEL = { auto: '🌦️ Tự động', on: '🌧️ Mưa', off: '☀
 
 export function ZoomControlsOverlay() {
   const [hint, setHint] = useState(true)
+  const diorama = useUI(s => s.diorama)
   const [time, setTime] = useState(world.mode)
   const [rain, setRain] = useState(world.rainMode)
   useEffect(() => {
@@ -42,6 +43,8 @@ export function ZoomControlsOverlay() {
           onClick={() => roofControl.toggle(roofControl.isOpen)}>🏯 Mái chùa</button>
         <button className="pc-btn" title="Một căn nhà ở phố ẩm thực bốc cháy, xe cứu hỏa sẽ tới" onClick={() => startFire()}>🚒 Báo cháy</button>
         <button className="pc-btn" title="Bắn pháo hoa (đẹp nhất vào ban đêm)" onClick={() => startFireworks(20)}>🎆 Pháo hoa</button>
+        <button className="pc-btn" aria-pressed={diorama} title="Hiệu ứng sa bàn: nhòe hai mép khung hình như chụp mô hình thu nhỏ (chế độ Đẹp)"
+          onClick={() => useUI.getState().toggleDiorama()}>🔭 Sa bàn</button>
         <button className="pc-btn game-launch" onClick={() => useUI.setState({ game: 'hub' })}>🎮 Trò chơi</button>
       </div>
       {hint && (

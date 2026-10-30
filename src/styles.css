@@ -586,7 +586,7 @@ body.hover-prop .scene canvas { cursor: pointer; }
 .game-window header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .game-window h2 { font-size: 17px; font-weight: 700; flex: 1; }
 .game-body { padding: 16px; }
-.game-launch { background: var(--accent) !important; color: var(--accent-ink) !important; border-color: var(--accent) !important; }
+.game-launch { grid-column: 1 / -1; background: var(--accent) !important; color: var(--accent-ink) !important; border-color: var(--accent) !important; }
 .game-hub { display: flex; flex-direction: column; gap: 10px; }
 .hub-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--card-2); }
 .hub-icon { font-size: 30px; text-align: center; }

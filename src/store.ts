@@ -14,6 +14,8 @@ interface UIState {
   selected: string
   filter: DeptId | 'all'
   quality: Quality
+  /** tilt-shift miniature look (high quality only) */
+  diorama: boolean
   ready: boolean
   /** bumped a few times per second so panels re-read the simulation */
   tick: number
@@ -33,6 +35,7 @@ interface UIState {
   setFilter: (f: DeptId | 'all') => void
   setQuality: (q: Quality) => void
   toggleZenMode: () => void
+  toggleDiorama: () => void
   toggleInspector: () => void
   toggleFeed: () => void
   setDistrict: (district: District) => void
@@ -46,6 +49,7 @@ export const useUI = create<UIState>(set => ({
   selected: 'ceo',
   filter: 'all',
   quality: urlParams?.get('quality') === 'low' ? 'low' : 'high',
+  diorama: urlParams?.get('diorama') !== '0',
   ready: false,
   tick: 0,
   zenMode: urlParams ? urlParams.get('zen') === '1' || urlParams.get('zen') === 'true' : false,
@@ -61,6 +65,7 @@ export const useUI = create<UIState>(set => ({
   setFilter: filter => set({ filter }),
   setQuality: quality => set({ quality }),
   toggleZenMode: () => set(s => ({ zenMode: !s.zenMode })),
+  toggleDiorama: () => set(s => ({ diorama: !s.diorama })),
   toggleInspector: () => set(s => ({ showInspector: !s.showInspector })),
   toggleFeed: () => set(s => ({ showFeed: !s.showFeed })),
   setDistrict: district => set({ district }),

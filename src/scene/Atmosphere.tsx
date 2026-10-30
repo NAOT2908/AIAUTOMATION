@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import {
   AdditiveBlending, Color, DirectionalLight, Fog, HemisphereLight, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial,
-  Object3D, PMREMGenerator, type Scene,
+  Object3D, PMREMGenerator, PointLight, type Scene,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { useUI } from '../store'
@@ -46,6 +46,61 @@ const HEMI_DAY = new Color('#FFF4DC'), HEMI_NIGHT = new Color('#7F93C9')
  * Lighting after khanh020905/my-office (studio room IBL, warm sun and sky) plus a day/night
  * cycle and rain. Static shadows stay baked; only light colours and intensities change.
  */
+/* ---------------------------------------------------------------- practical lights */
+
+/**
+ * Real point lights for the night street (3dviz-pro-max recipe.night-market-street): emissive
+ * bulbs only show the source, these actually light tables, walls and the pavement. Every light
+ * sits just under a fixture you can see. Warm incandescent and cool neon stay separate groups.
+ * They are always mounted (intensity 0 by day) so day/night never recompiles shaders.
+ */
+const PRACTICALS: { p: [number, number, number]; c: string; i: number; d: number; neon?: boolean }[] = [
+  // food street string lights (bistro at x 26, bulbs y≈3.1, z≈2.4)
+  { p: [20.5, 2.7, 2.6], c: '#FFB45C', i: 22, d: 9 },
+  { p: [26, 2.7, 2.6], c: '#FFB45C', i: 22, d: 9 },
+  { p: [31.5, 2.7, 2.6], c: '#FFB45C', i: 22, d: 9 },
+  // club neon (pink + cyan on the façade)
+  { p: [26, 3.4, 33], c: '#FF4FB8', i: 18, d: 8, neon: true },
+  { p: [23.4, 3.4, 31.5], c: '#38E1FF', i: 16, d: 7, neon: true },
+  // pagoda stone lanterns
+  { p: [-4.4, 1.2, 31.6], c: '#FFA645', i: 6, d: 5 },
+  { p: [1.0, 1.2, 31.6], c: '#FFA645', i: 6, d: 5 },
+]
+
+/** the street lamps around the main crossing, as real lights under their heads */
+function crossingLamps() {
+  return lampSpots()
+    .map(([x, z, a]) => [x + Math.sin(a) * 0.9, z + Math.cos(a) * 0.9] as [number, number])
+    .sort((a, b) => Math.hypot(a[0] - AVENUE_X, a[1] - BOULEVARD_Z) - Math.hypot(b[0] - AVENUE_X, b[1] - BOULEVARD_Z))
+    .slice(0, 4)
+}
+
+function PracticalLights() {
+  const lamps = useMemo(crossingLamps, [])
+  const refs = useRef<(PointLight | null)[]>([])
+  useFrame(({ clock }) => {
+    const on = smooth(0.3, 0.7, world.night + world.rain * 0.25)
+    const t = clock.elapsedTime
+    refs.current.forEach((l, i) => {
+      if (!l) return
+      const src = PRACTICALS[i]
+      // neon breathes a little, each at its own rate; warm bulbs hold steady
+      const pulse = src?.neon ? 0.85 + 0.15 * Math.sin(t * (1.3 + i * 0.37)) : 1
+      l.intensity = (src ? src.i : 30) * on * pulse * 0.2
+    })
+  })
+  return (
+    <group>
+      {PRACTICALS.map((l, i) => (
+        <pointLight key={i} ref={el => { refs.current[i] = el }} position={l.p} color={l.c} intensity={0} distance={l.d} decay={2} />
+      ))}
+      {lamps.map(([x, z], i) => (
+        <pointLight key={`lamp${i}`} ref={el => { refs.current[PRACTICALS.length + i] = el }} position={[x, 2.9, z]} color="#FFC266" intensity={0} distance={9} decay={2} />
+      ))}
+    </group>
+  )
+}
+
 export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
   const gl = useThree(s => s.gl)
   const scene = useThree(s => s.scene) as Scene
@@ -53,6 +108,7 @@ export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
   const sun = useRef<DirectionalLight>(null)
   const dayBg = useMemo(() => new Color(bg), [bg])
   const rainTimer = useRef({ next: 40, on: false })
+  const high = useUI(s => s.quality === 'high')
 
   useEffect(() => {
     const pmrem = new PMREMGenerator(gl)
@@ -90,7 +146,12 @@ export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
     scene.environmentIntensity = (0.35 - 0.28 * n) * (1 - r * 0.3)
     if (scene.background instanceof Color) {
       scene.background.copy(dayBg).lerp(SKY_RAIN, r * 0.45 * (1 - n)).lerp(SKY_NIGHT, n)
-      if (scene.fog instanceof Fog) scene.fog.color.copy(scene.background)
+      if (scene.fog instanceof Fog) {
+        scene.fog.color.copy(scene.background)
+        const ui = useUI.getState(), miniature = ui.diorama && ui.quality === 'high'
+        scene.fog.near = miniature ? 5000 : 250
+        scene.fog.far = miniature ? 6000 : 400
+      }
     }
   })
 
@@ -104,6 +165,7 @@ export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
         <orthographicCamera attach="shadow-camera" args={[-60, 60, 60, -60, 1, 150]} />
       </directionalLight>
       <StreetLamps />
+      {high && <PracticalLights />}
       <Rain />
     </>
   )
