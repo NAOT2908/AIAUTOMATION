@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { LabelLayer } from './scene/Labels'
+import { SpeechLayer } from './scene/Speech'
 import { Office } from './scene/Office'
 import { company } from './sim/engine'
 import { useUI } from './store'
@@ -7,6 +8,7 @@ import { Feed } from './ui/Feed'
 import { Icon } from './ui/Icon'
 import { Inspector } from './ui/Inspector'
 import { PropCard, PropTooltip } from './ui/PropCard'
+import { GameModal } from './ui/games/GameModal'
 import { TopBar } from './ui/TopBar'
 import { ZenFloatingBar } from './ui/ZenFloatingBar'
 import { ZoomControlsOverlay } from './ui/ZoomControls'
@@ -71,6 +73,7 @@ export function App() {
       <div className="scene">
         <Office />
         <LabelLayer />
+        <SpeechLayer />
         <Loading />
       </div>
 
@@ -78,6 +81,7 @@ export function App() {
       <Inspector />
       <Feed />
       <PropCard />
+      <GameModal />
       <PropTooltip />
       <ZoomControlsOverlay />
 

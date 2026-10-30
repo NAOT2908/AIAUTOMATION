@@ -76,7 +76,7 @@ function Walker({ route, reverse, delay, idx }: { route: Route; reverse: boolean
   })
   return (
     <group ref={ref} visible={false}>
-      <ChibiHuman pos={[0, 0, 0]} role={route.role ?? 'guest'} action="walk" name={`walker-${idx}-${reverse ? 'r' : 'a'}`}
+      <ChibiHuman pos={[0, 0, 0]} role={route.role ?? 'guest'} action="walk" name={`walker-${idx}-${reverse ? 'r' : 'a'}`} voice={route.role === 'buddhist' ? 'buddhist' : 'walker'}
         shirtColor={SHIRTS[idx % SHIRTS.length]} pantsColor={PANTS[idx % PANTS.length]} />
     </group>
   )

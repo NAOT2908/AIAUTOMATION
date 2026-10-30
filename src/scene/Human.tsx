@@ -1,7 +1,8 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CapsuleGeometry, Group, SphereGeometry, TorusGeometry } from 'three'
 import { sound } from '../audio/sound'
+import { speakers, type Voice } from './chatter'
 import { M, glow, tint } from './materials'
 
 export type HumanRole = 'monk' | 'buddhist' | 'guest' | 'dancer' | 'office' | 'chef'
@@ -19,6 +20,12 @@ export type HumanAction =
   | 'ring'
   /** sitting on a chair or stool */
   | 'sit'
+  /** walking with a tray held out in front */
+  | 'carry'
+  /** standing, tray held out */
+  | 'hold'
+  /** singing into a microphone, swaying */
+  | 'sing'
 export type Hair = 'short' | 'bun' | 'long' | 'bald' | 'cap'
 
 interface HumanProps {
@@ -35,6 +42,10 @@ interface HumanProps {
   seat?: number
   /** beat period in seconds for 'chant' (shared with the pagoda's sound) */
   beat?: number
+  /** registers this person with the city's chatter under `name` */
+  voice?: Voice
+  /** people at the same table talk to each other */
+  table?: string
 }
 
 /* shared geometry: every person reuses the same handful of buffers */
@@ -64,7 +75,7 @@ function hash(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h 
  */
 export function ChibiHuman({
   pos, role, rot = 0, name = '', skinTone = '#F3C9A5', shirtColor = '#2563EB', pantsColor = '#334155',
-  hair, action = 'idle', seat = 0.45, beat = 0.9,
+  hair, action = 'idle', seat = 0.45, beat = 0.9, voice, table,
 }: HumanProps) {
   const root = useRef<Group>(null)
   const hips = useRef<Group>(null)
@@ -75,6 +86,14 @@ export function ChibiHuman({
   const legL = useRef<Group>(null)
   const legR = useRef<Group>(null)
   const [greet, setGreet] = useState(false)
+
+  const seatedPose = action === 'meditate' || action === 'chant' || action === 'sit' || action === 'eat' || action === 'prostrate'
+  useEffect(() => {
+    if (!voice || !root.current) return
+    const id = name || `p-${pos.join(',')}`
+    speakers.set(id, { obj: root.current, voice, table, head: seatedPose ? 1.35 : 1.75 })
+    return () => { speakers.delete(id) }
+  }, [voice, table, name, seatedPose]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const robed = role === 'monk' || role === 'buddhist'
   const seed = useMemo(() => hash(name + pos.join(',')), [name, pos])
@@ -170,6 +189,25 @@ export function ChibiHuman({
         pitch = -pull * 0.25
         break
       }
+      case 'carry':
+      case 'hold': {
+        if (action === 'carry') {
+          const s = Math.sin(t * 7)
+          ll = [s * 0.5, 0]; lr = [-s * 0.5, 0]
+          bob = Math.abs(Math.cos(t * 7)) * 0.03
+        }
+        al = [-1.3, 0, 0.12]; ar = [-1.3, 0, -0.12]
+        break
+      }
+      case 'sing': {
+        bob = Math.abs(Math.sin(t * 4)) * 0.05
+        yaw = Math.sin(t * 2) * 0.3
+        ar = [-2.1, 0, -0.45]
+        al = [-0.4 + Math.sin(t * 4) * 0.3, 0, 0.7 + Math.sin(t * 2) * 0.4]
+        headX = -0.1 + Math.sin(t * 4) * 0.06
+        ll = [Math.sin(t * 4) * 0.12, 0]; lr = [-Math.sin(t * 4) * 0.12, 0]
+        break
+      }
       case 'eat':
         ar = [-1.35 + Math.max(0, Math.sin(t * 2.4)) * 0.6, 0, -0.2]
         al = [-1.0, 0, 0.3]
@@ -221,6 +259,12 @@ export function ChibiHuman({
     <group ref={ref} position={[side * 0.25, 0.36, 0]}>
       <mesh geometry={G.limb} material={mats.top} position={[0, -0.14, 0]} castShadow />
       <mesh geometry={G.hand} material={mats.skin} position={[0, -0.29, 0]} />
+      {action === 'sing' && side === 1 && (
+        <group position={[0, -0.36, 0.02]}>
+          <mesh material={M.black}><cylinderGeometry args={[0.025, 0.02, 0.16, 8]} /></mesh>
+          <mesh position={[0, -0.1, 0]} material={M.metal}><sphereGeometry args={[0.045, 10, 8]} /></mesh>
+        </group>
+      )}
     </group>
   )
 

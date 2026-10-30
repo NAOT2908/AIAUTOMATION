@@ -170,6 +170,75 @@ class SoundManager {
     osc.stop(now + 0.42)
   }
 
+  private noise: AudioBuffer | null = null
+  private noiseBuffer() {
+    if (!this.noise && this.ctx) {
+      const len = this.ctx.sampleRate * 0.5
+      this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate)
+      const d = this.noise.getChannelData(0)
+      for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1
+    }
+    return this.noise
+  }
+
+  /** drum-machine voices for the DJ game */
+  public playDrum(kind: 'kick' | 'snare' | 'hat' | 'synth', pitch = 440, volume = 1) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const ctx = this.ctx, now = ctx.currentTime, out = this.sfxGain
+    if (kind === 'kick') {
+      const o = ctx.createOscillator(), g = ctx.createGain()
+      o.frequency.setValueAtTime(150, now)
+      o.frequency.exponentialRampToValueAtTime(42, now + 0.15)
+      g.gain.setValueAtTime(0.9 * volume, now)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+      o.connect(g); g.connect(out); o.start(now); o.stop(now + 0.32)
+      return
+    }
+    if (kind === 'synth') {
+      const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter()
+      o.type = 'sawtooth'
+      o.frequency.setValueAtTime(pitch, now)
+      f.type = 'lowpass'
+      f.frequency.setValueAtTime(2400, now)
+      f.frequency.exponentialRampToValueAtTime(500, now + 0.25)
+      g.gain.setValueAtTime(0.28 * volume, now)
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.28)
+      o.connect(f); f.connect(g); g.connect(out); o.start(now); o.stop(now + 0.3)
+      return
+    }
+    const buf = this.noiseBuffer()
+    if (!buf) return
+    const src = ctx.createBufferSource(), g = ctx.createGain(), f = ctx.createBiquadFilter()
+    src.buffer = buf
+    f.type = kind === 'hat' ? 'highpass' : 'bandpass'
+    f.frequency.value = kind === 'hat' ? 7000 : 1800
+    const dur = kind === 'hat' ? 0.06 : 0.18
+    g.gain.setValueAtTime((kind === 'hat' ? 0.35 : 0.6) * volume, now)
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur)
+    src.connect(f); f.connect(g); g.connect(out); src.start(now); src.stop(now + dur + 0.02)
+  }
+
+  /** short rising "ding" for a win, falling "bwomp" for a fail */
+  public playResult(win: boolean) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const now = this.ctx.currentTime
+    const notes = win ? [523, 659, 784, 1046] : [392, 330, 262]
+    notes.forEach((f, i) => {
+      const o = this.ctx!.createOscillator(), g = this.ctx!.createGain()
+      o.type = win ? 'triangle' : 'sawtooth'
+      o.frequency.setValueAtTime(f, now + i * 0.09)
+      g.gain.setValueAtTime(0.0001, now + i * 0.09)
+      g.gain.exponentialRampToValueAtTime(win ? 0.25 : 0.15, now + i * 0.09 + 0.01)
+      g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.09 + 0.22)
+      o.connect(g); g.connect(this.sfxGain!)
+      o.start(now + i * 0.09); o.stop(now + i * 0.09 + 0.25)
+    })
+  }
+
   /** temple bell: a low fundamental plus the inharmonic partials of a bronze bell, long decay */
   public playBell(volume = 1) {
     if (this.sfxMuted) return

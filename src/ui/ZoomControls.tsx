@@ -1,9 +1,19 @@
 import { useEffect, useState } from 'react'
+import { world } from '../scene/Atmosphere'
+import { roofControl } from '../scene/Districts'
 import { camNav } from '../scene/Office'
 import { Icon } from './Icon'
+import { useUI } from '../store'
+
+const TIME_NEXT = { auto: 'day', day: 'night', night: 'auto' } as const
+const TIME_LABEL = { auto: '🔁 Tự động', day: '☀️ Ngày', night: '🌙 Đêm' }
+const RAIN_NEXT = { auto: 'on', on: 'off', off: 'auto' } as const
+const RAIN_LABEL = { auto: '🌦️ Tự động', on: '🌧️ Mưa', off: '☀️ Tạnh' }
 
 export function ZoomControlsOverlay() {
   const [hint, setHint] = useState(true)
+  const [time, setTime] = useState(world.mode)
+  const [rain, setRain] = useState(world.rainMode)
   useEffect(() => {
     const t = setTimeout(() => setHint(false), 12000)
     return () => clearTimeout(t)
@@ -21,6 +31,15 @@ export function ZoomControlsOverlay() {
         <button className="zoom-btn" onClick={() => camNav.zoomBy(1 / 1.35)} title="Thu nhỏ (cuộn chuột xuống)">
           <Icon name="minus" size={15} />
         </button>
+      </div>
+      <div className="world-controls" role="toolbar" aria-label="Thời gian và thời tiết">
+        <button className="pc-btn" title="Thời gian trong ngày: tự động / ngày / đêm"
+          onClick={() => { const m = TIME_NEXT[time]; world.mode = m; setTime(m) }}>{TIME_LABEL[time]}</button>
+        <button className="pc-btn" title="Thời tiết: tự động / mưa / tạnh"
+          onClick={() => { const m = RAIN_NEXT[rain]; world.rainMode = m; setRain(m) }}>{RAIN_LABEL[rain]}</button>
+        <button className="pc-btn" title="Mở/đóng mái chính điện chùa để nhìn tượng Phật bên trong (tự đóng sau 20 giây)"
+          onClick={() => roofControl.toggle(roofControl.isOpen)}>🏯 Mái chùa</button>
+        <button className="pc-btn game-launch" onClick={() => useUI.setState({ game: 'hub' })}>🎮 Trò chơi</button>
       </div>
       {hint && (
         <div className="nav-hint" role="note">

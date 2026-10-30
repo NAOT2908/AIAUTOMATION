@@ -97,6 +97,19 @@ function Roads({ theme }: { theme: SceneTheme }) {
 
   return (
     <group>
+      {/* sidewalks (drawn just under the roads, so the roads win at crossings) */}
+      {[-1, 1].map(s => (
+        <mesh key={`bs${s}`} rotation-x={-Math.PI / 2} position={[12, GROUND_Y + 0.003, FRONT_ROAD_Z + s * 2.5]} receiveShadow>
+          <planeGeometry args={[120, 1.3]} />
+          <meshStandardMaterial color={theme.walk} roughness={0.9} />
+        </mesh>
+      ))}
+      {[-1, 1].map(s => (
+        <mesh key={`as${s}`} rotation-x={-Math.PI / 2} position={[SIDE_ROAD_X + s * 2.5, GROUND_Y + 0.002, 14]} receiveShadow>
+          <planeGeometry args={[1.3, 120]} />
+          <meshStandardMaterial color={theme.walk} roughness={0.9} />
+        </mesh>
+      ))}
       {/* Main East-West Boulevard */}
       <mesh rotation-x={-Math.PI / 2} position={[12, GROUND_Y + 0.006, FRONT_ROAD_Z]} receiveShadow>
         <planeGeometry args={[120, 3.8]} />
@@ -184,7 +197,7 @@ export function World({ theme }: { theme: SceneTheme }) {
   return (
     <group>
       <mesh rotation-x={-Math.PI / 2} position={[0, GROUND_Y, 0]} receiveShadow>
-        <planeGeometry args={[160, 160]} />
+        <planeGeometry args={[1200, 1200]} />
         <meshStandardMaterial color={theme.ground} roughness={1} />
       </mesh>
       <Roads theme={theme} />

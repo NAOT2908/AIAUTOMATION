@@ -1,16 +1,20 @@
 import { OrbitControls, PerformanceMonitor } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import { ACESFilmicToneMapping, MOUSE, OrthographicCamera, PMREMGenerator, TOUCH, Vector3 } from 'three'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
+import { ACESFilmicToneMapping, MOUSE, OrthographicCamera, TOUCH, Vector3 } from 'three'
 import { BOT_DEFS, MIN_PER_SEC } from '../sim/data'
 import { citySim } from '../sim/citySim'
 import { company } from '../sim/engine'
 import { useUI, type District } from '../store'
+import { Atmosphere } from './Atmosphere'
+import { ChargingStation, FootballPitch, Market, School } from './Civic'
 import { RoboCityCampus } from './Districts'
+import { Metro } from './Metro'
+import { LakePark } from './Park'
 import { Pedestrians, Sky } from './CityLife'
 import { Effects, Packets, Truck } from './Fx'
 import { LabelSync } from './Labels'
+import { CitySpeech } from './Speech'
 import { MyOfficeCompany } from './MyOffice'
 import { OfficeCat, RobotVacuum, StreetTraffic } from './OfficeLife'
 import { Robot } from './Robot'
@@ -63,13 +67,42 @@ const DISTRICT_TARGETS: Record<District, [number, number, number, number]> = {
   club: [26, 0, 31, 1.15],
 }
 
+/**
+ * Keeps the canvas the size of its box. After a fullscreen switch or a window resize the
+ * measured size can go stale, leaving a blank band; this re-measures whenever they disagree.
+ */
+function CanvasSizeGuard() {
+  const gl = useThree(s => s.gl)
+  const setSize = useThree(s => s.setSize)
+  const size = useThree(s => s.size)
+  const last = useRef(0)
+  useEffect(() => {
+    const fit = () => {
+      const box = gl.domElement.parentElement
+      if (box && (Math.abs(box.clientWidth - size.width) > 1 || Math.abs(box.clientHeight - size.height) > 1)) setSize(box.clientWidth, box.clientHeight)
+    }
+    const later = () => { fit(); setTimeout(fit, 150); setTimeout(fit, 600) }
+    addEventListener('resize', later)
+    document.addEventListener('fullscreenchange', later)
+    return () => { removeEventListener('resize', later); document.removeEventListener('fullscreenchange', later) }
+  }, [gl, setSize, size.width, size.height])
+  useFrame(() => {
+    const now = performance.now()
+    if (now - last.current < 500) return
+    last.current = now
+    const box = gl.domElement.parentElement
+    if (box && box.clientWidth && (Math.abs(box.clientWidth - size.width) > 1 || Math.abs(box.clientHeight - size.height) > 1)) setSize(box.clientWidth, box.clientHeight)
+  })
+  return null
+}
+
 /** imperative camera commands for the UI (zoom buttons, reset) and double-click travel */
 export const camNav = {
   flyTo: (_x: number, _z: number, _zoom?: number) => {},
   zoomBy: (_factor: number) => {},
   reset: () => {},
 }
-const BOUNDS = { minX: -28, maxX: 52, minZ: -42, maxZ: 52 }
+const BOUNDS = { minX: -54, maxX: 58, minZ: -52, maxZ: 54 }
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 
 /**
@@ -126,7 +159,7 @@ function Rig() {
     camNav.flyTo = (x, z, zoom) => { flight.current = { x: clamp(x, BOUNDS.minX, BOUNDS.maxX), z: clamp(z, BOUNDS.minZ, BOUNDS.maxZ), zoom: zoom ?? null } }
     camNav.zoomBy = f => {
       const c = controlsRef.current
-      if (c) flight.current = { x: c.target.x, z: c.target.z, zoom: clamp(camera.zoom * f, 8, 180) }
+      if (c) flight.current = { x: c.target.x, z: c.target.z, zoom: clamp(camera.zoom * f, 14, 180) }
     }
     camNav.reset = () => { flight.current = districtTarget() }
   })
@@ -200,45 +233,9 @@ function Rig() {
       target={[0, 0, 0.8]}
       minPolarAngle={0.35}
       maxPolarAngle={1.25}
-      minZoom={8}
+      minZoom={14}
       maxZoom={180}
     />
-  )
-}
-
-/**
- * Lighting after khanh020905/my-office: a bright studio room as image-based light, a warm sun
- * and a warm sky/grass hemisphere, then ACES tone mapping. Matte materials read as soft clay.
- */
-function StudioEnvironment({ dark }: { dark: boolean }) {
-  const gl = useThree(s => s.gl)
-  const scene = useThree(s => s.scene)
-  useEffect(() => {
-    const pmrem = new PMREMGenerator(gl)
-    const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
-    scene.environment = env
-    scene.environmentIntensity = dark ? 0.2 : 0.35
-    return () => {
-      scene.environment = null
-      env.dispose()
-      pmrem.dispose()
-    }
-  }, [gl, scene, dark])
-  return null
-}
-
-function Lights({ dark }: { dark: boolean }) {
-  return (
-    <>
-      <hemisphereLight args={[dark ? '#9FB4E0' : '#FFF4DC', dark ? '#1A2638' : '#A9B98A', dark ? 0.4 : 0.7]} />
-      <directionalLight
-        position={[24, 32, 20]} intensity={dark ? 0.8 : 1.6} color={dark ? '#C8D6FF' : '#FFF0D6'} castShadow
-        shadow-mapSize={[2048, 2048]} shadow-bias={-0.0004} shadow-normalBias={0.02}
-      >
-        <orthographicCamera attach="shadow-camera" args={[-36, 36, 36, -36, 1, 90]} />
-      </directionalLight>
-      <StudioEnvironment dark={dark} />
-    </>
   )
 }
 
@@ -283,7 +280,7 @@ export function Office() {
       orthographic
       dpr={high ? [1, 1.5] : 1}
       frameloop="demand"
-      camera={{ position: [34, 30, 34], zoom: 30, near: 0.1, far: 300 }}
+      camera={{ position: [136, 120, 136], zoom: 30, near: 1, far: 900 }}
       gl={{ antialias: !high, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
         gl.toneMapping = ACESFilmicToneMapping
@@ -293,9 +290,10 @@ export function Office() {
     >
       <color attach="background" args={[theme.bg]} />
       <FrameBudget />
+      <CanvasSizeGuard />
       <SimDriver />
       <Rig />
-      <Lights dark={theme.dark} />
+      <Atmosphere dark={theme.dark} bg={theme.bg} />
       <group onDoubleClick={e => { e.stopPropagation(); camNav.flyTo(e.point.x, e.point.z) }}>
       <World theme={theme} />
       <RoboCityCampus />
@@ -307,8 +305,15 @@ export function Office() {
       <StreetTraffic />
       <Pedestrians />
       <Sky />
+      <LakePark />
+      <Metro />
+      <FootballPitch />
+      <School />
+      <Market />
+      <ChargingStation />
       </group>
       <LabelSync />
+      <CitySpeech />
       <Packets />
       <Truck />
       <ShadowBaker />

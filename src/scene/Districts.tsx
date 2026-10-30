@@ -1,10 +1,11 @@
 import { RoundedBox } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef, type ReactNode } from 'react'
-import { Color, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { CanvasTexture, Color, Group, InstancedMesh, Mesh, MeshBasicMaterial, MeshStandardMaterial, Object3D, SRGBColorSpace, SphereGeometry, Sprite, SpriteMaterial } from 'three'
 import { sound } from '../audio/sound'
 import { useUI } from '../store'
 import { CurvedRoof, bellGeometry, signTexture2, stoneTexture, stripeTexture } from './arch'
+import { speak } from './chatter'
 import { ChibiHuman } from './Human'
 import { GuanYin, Shakyamuni } from './Statue'
 import { Interactive } from './interact'
@@ -16,18 +17,19 @@ export const PAGODA_POS: [number, number, number] = [-2, 0, 31]
 export const CLUB_POS: [number, number, number] = [26, 0, 31]
 
 const PI = Math.PI
+const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)]
 
 /** a platform with a paved top (stone texture) */
-function Plaza({ w, d, color, repeat }: { w: number; d: number; color: string; repeat: number }) {
+export function Plaza({ w, d, color, repeat }: { w: number; d: number; color: string; repeat: number }) {
   const mat = useMemo(() => new MeshStandardMaterial({ map: stoneTexture(color, [w / repeat, d / repeat]), roughness: 0.9 }), [w, d, color, repeat])
   return <RoundedBox args={[w, 0.24, d]} radius={0.06} position={[0, -0.12, 0]} material={mat} receiveShadow castShadow />
 }
 
-function Box({ s, p, c, r = 0.7, rot }: { s: [number, number, number]; p: [number, number, number]; c: string; r?: number; rot?: [number, number, number] }) {
+export function Box({ s, p, c, r = 0.7, rot }: { s: [number, number, number]; p: [number, number, number]; c: string; r?: number; rot?: [number, number, number] }) {
   return <mesh position={p} rotation={rot} material={tint(c, r)} castShadow receiveShadow><boxGeometry args={s} /></mesh>
 }
 
-function Pillar({ x, z, h, y = 0, c = '#9E2B25', r = 0.13 }: { x: number; z: number; h: number; y?: number; c?: string; r?: number }) {
+export function Pillar({ x, z, h, y = 0, c = '#9E2B25', r = 0.13 }: { x: number; z: number; h: number; y?: number; c?: string; r?: number }) {
   return (
     <group position={[x, y, z]}>
       <mesh position={[0, 0.08, 0]} material={tint('#CDBBA0', 0.85)} castShadow><cylinderGeometry args={[r * 1.6, r * 1.8, 0.16, 14]} /></mesh>
@@ -36,7 +38,7 @@ function Pillar({ x, z, h, y = 0, c = '#9E2B25', r = 0.13 }: { x: number; z: num
   )
 }
 
-function Tree({ x, z, s = 1, dark = false }: { x: number; z: number; s?: number; dark?: boolean }) {
+export function Tree({ x, z, s = 1, dark = false }: { x: number; z: number; s?: number; dark?: boolean }) {
   const leaf = tint(dark ? '#3E7D45' : '#5FA552', 0.85)
   return (
     <group position={[x, 0, z]} scale={s}>
@@ -66,6 +68,13 @@ function Candle({ x, z, y }: { x: number; z: number; y: number }) {
 
 /** zoom threshold (camera.zoom) above which roofs lift off, like a dollhouse cut-away */
 const CUTAWAY_ZOOM = 70
+/** manual open/close of the hall roof (roof click or the 🏯 button); expires after a while */
+export const roofControl = {
+  open: null as boolean | null,
+  until: 0,
+  toggle(current: boolean) { this.open = !current; this.until = performance.now() + 20000 },
+  isOpen: false,
+}
 
 /**
  * Cut-away roof: rises and fades out when the camera is close (or when clicked), so the
@@ -74,21 +83,21 @@ const CUTAWAY_ZOOM = 70
 function HallRoof({ children }: { children: ReactNode }) {
   const ref = useRef<Group>(null)
   const lift = useRef(0)
-  const manual = useRef<boolean | null>(null)
   const camera = useThree(st => st.camera)
   useFrame((_, dt) => {
     const g = ref.current
     if (!g) return
     const close = camera.zoom > CUTAWAY_ZOOM
-    if (manual.current !== null && close === manual.current) manual.current = null
-    const open = manual.current ?? close
+    const manual = roofControl.until > performance.now() ? roofControl.open : null
+    const open = manual ?? close
+    roofControl.isOpen = open
     lift.current += ((open ? 1 : 0) - lift.current) * Math.min(1, dt * 5)
     g.position.y = 2.85 + lift.current * 7
     g.visible = lift.current < 0.97
   })
   return (
     <Interactive name="Mái chính điện" hint="Bấm để mở mái nhìn vào trong (phóng to cũng tự mở)" bounce={false}
-      onActivate={() => { manual.current = !(manual.current ?? camera.zoom > CUTAWAY_ZOOM) }}>
+      onActivate={() => roofControl.toggle(roofControl.isOpen)}>
       <group ref={ref} position={[0, 2.85, -0.2]}>{children}</group>
     </Interactive>
   )
@@ -200,7 +209,7 @@ function BellTower({ position }: { position: [number, number, number] }) {
         <mesh rotation-z={PI / 2} material={tint('#8A6440', 0.8)} castShadow><cylinderGeometry args={[0.1, 0.1, 1.1, 12]} /></mesh>
         {[-0.35, 0.35].map(x => <mesh key={x} position={[x, 0.33, 0]} material={tint('#C9A86B', 0.9)}><cylinderGeometry args={[0.012, 0.012, 0.66, 4]} /></mesh>)}
       </group>
-      <ChibiHuman pos={[-1.85, 0, 0]} rot={PI / 2} role="monk" action="ring" name="chuong" />
+      <ChibiHuman pos={[-1.85, 0, 0]} rot={PI / 2} role="monk" action="ring" name="chuong" voice="ringer" />
     </group>
   )
 }
@@ -303,7 +312,7 @@ function StoneLantern({ x, z }: { x: number; z: number }) {
 
 function Woodfish({ position }: { position: [number, number, number] }) {
   return (
-    <Interactive name="Mõ gỗ" hint="Bấm để gõ mõ" position={position} onActivate={() => sound.playWoodfish()}>
+    <Interactive name="Mõ gỗ" hint="Bấm để chơi Gõ mõ tích công đức 🪵" position={position} onActivate={() => { sound.playWoodfish(); useUI.setState({ game: 'mo' }) }}>
       <mesh position={[0, 0.06, 0]} material={tint('#7A1D17', 0.6)}><cylinderGeometry args={[0.2, 0.22, 0.1, 16]} /></mesh>
       <mesh position={[0, 0.2, 0]} scale={[1, 0.8, 0.85]} material={tint('#A5672F', 0.45)} castShadow><sphereGeometry args={[0.16, 18, 12]} /></mesh>
       <mesh position={[0, 0.2, 0.13]} scale={[0.7, 0.12, 0.2]} material={tint('#3B2210', 0.6)}><sphereGeometry args={[0.16, 10, 6]} /></mesh>
@@ -368,24 +377,24 @@ function CyberPagoda() {
 
       {/* the assembly: a monk leads the chant with the wooden fish; lay Buddhists meditate, palms together */}
       <Cushion x={1.75} z={1.9} c="#5C2A1C" />
-      <ChibiHuman pos={[1.75, 0.12, 1.9]} rot={PI / 2} role="monk" action="chant" beat={BEAT} name="tri-khach" />
+      <ChibiHuman pos={[1.75, 0.12, 1.9]} rot={PI / 2} role="monk" action="chant" beat={BEAT} name="tri-khach" voice="monk" />
       <Woodfish position={[2.15, 0, 1.6]} />
       {[[-1.3, 0.8], [0.15, 0.8], [-1.3, 1.9], [0.15, 1.9], [-1.3, 3.0], [0.15, 3.0]].map(([x, z], i) => (
         <group key={i}>
           <Cushion x={x} z={z} />
-          <ChibiHuman pos={[x, 0.12, z]} rot={PI / 2} role="buddhist" action="meditate" name={`phat-tu-${i}`}
+          <ChibiHuman pos={[x, 0.12, z]} rot={PI / 2} role="buddhist" action="meditate" name={`phat-tu-${i}`} voice="buddhist"
             skinTone={['#F3C9A5', '#E8B48E', '#F6D2B5'][i % 3]} hair={i % 2 ? 'bun' : 'short'} />
         </group>
       ))}
       {/* a visitor bowing on the hall steps */}
-      <ChibiHuman pos={[0.3, 0, 0.3]} rot={PI} role="buddhist" action="prostrate" name="le-phat" hair="long" />
+      <ChibiHuman pos={[0.3, 0, 0.3]} rot={PI} role="buddhist" action="prostrate" name="le-phat" hair="long" voice="buddhist" />
     </group>
   )
 }
 
 /* ================================================================ 2. PHỐ ẨM THỰC */
 
-function Scooter({ x, z, rot = 0, c }: { x: number; z: number; rot?: number; c: string }) {
+export function Scooter({ x, z, rot = 0, c }: { x: number; z: number; rot?: number; c: string }) {
   return (
     <group position={[x, 0, z]} rotation-y={rot}>
       {[-0.42, 0.42].map(zz => (
@@ -418,7 +427,7 @@ function PlasticSet({ x, z, people }: { x: number; z: number; people: number }) 
       {seats.map(([sx, sz, r], i) => (
         <group key={i} position={[sx, 0, sz]}>
           <mesh position={[0, 0.26, 0]} material={tint(i % 2 ? '#D63A3A' : '#2E7BD6', 0.5)} castShadow><cylinderGeometry args={[0.15, 0.18, 0.26, 12]} /></mesh>
-          {i < people && <ChibiHuman pos={[0, 0, 0]} rot={r} role="guest" action="eat" seat={0.28} name={`an-${x}-${z}-${i}`}
+          {i < people && <ChibiHuman pos={[0, 0, 0]} rot={r} role="guest" action="eat" seat={0.28} name={`an-${x}-${z}-${i}`} voice="diner" table={`ban-${x}-${z}`}
             shirtColor={['#F97316', '#0EA5E9', '#22C55E', '#E11D48'][i]} pantsColor={['#334155', '#1E3A8A', '#3F3F46', '#1F2937'][i]} />}
         </group>
       ))}
@@ -495,7 +504,7 @@ function PhoCart({ position }: { position: [number, number, number] }) {
     })
   })
   return (
-    <Interactive name="Xe phở" hint="Nồi nước dùng hầm suốt đêm" position={position} onActivate={() => sound.playBeep(700, 0.1)}>
+    <Interactive name="Xe phở" hint="Bấm để chơi Nấu phở thần tốc 🍜" position={position} onActivate={() => { sound.playBeep(700, 0.1); useUI.setState({ game: 'pho' }) }}>
       <RoundedBox args={[1.8, 0.85, 0.8]} radius={0.05} position={[0, 0.5, 0]} material={tint('#C0392B', 0.5)} castShadow />
       <RoundedBox args={[1.9, 0.06, 0.9]} radius={0.02} position={[0, 0.95, 0]} material={tint('#E9E4DA', 0.4)} />
       <mesh position={[0, 0.2, 0.42]} rotation-x={PI / 2} material={M.tyre}><cylinderGeometry args={[0.18, 0.18, 0.06, 14]} /></mesh>
@@ -508,8 +517,110 @@ function PhoCart({ position }: { position: [number, number, number] }) {
   )
 }
 
+const TABLES: [number, number][] = [[-2.6, 2.2], [0.2, 1.4], [2.9, 2.3], [5.4, 1.0]]
+
+/** a fresh bowl appears on the table the waiter just served, steaming for a while */
+function ServedDishes({ served }: { served: { current: number[] } }) {
+  const groups = useRef<(Group | null)[]>([])
+  const puffs = useMemo(() => TABLES.map(() => [0, 1, 2].map(() => new MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0, depthWrite: false }))), [])
+  useFrame(state => {
+    const now = performance.now(), t = state.clock.elapsedTime
+    TABLES.forEach((_, i) => {
+      const g = groups.current[i]
+      if (!g) return
+      const age = (now - served.current[i]) / 1000
+      g.visible = age < 28
+      puffs[i].forEach((m, k) => {
+        const kk = (t * 0.6 + k / 3) % 1
+        m.opacity = age < 14 ? 0.45 * (1 - kk) * (1 - age / 14) : 0
+        const mesh = g.children[2 + k]
+        mesh.position.set(Math.sin(t + k) * 0.03, 0.1 + kk * 0.5, 0)
+        mesh.scale.setScalar(0.5 + kk * 1.2)
+      })
+    })
+  })
+  return (
+    <group>
+      {TABLES.map(([x, z], i) => (
+        <group key={i} ref={el => { groups.current[i] = el }} position={[x - 0.02, 0.46, z - 0.2]} visible={false}>
+          <mesh material={M.white}><cylinderGeometry args={[0.12, 0.07, 0.09, 16]} /></mesh>
+          <mesh position={[0, 0.04, 0]} rotation-x={-Math.PI / 2} material={tint('#E9B65C', 0.5)}><circleGeometry args={[0.105, 16]} /></mesh>
+          {puffs[i].map((m, k) => <mesh key={k} material={m}><sphereGeometry args={[0.05, 8, 6]} /></mesh>)}
+        </group>
+      ))}
+    </group>
+  )
+}
+
+/** the waiter: picks up at the phở cart, carries a bowl to each table in turn */
+function Waiter({ served }: { served: { current: number[] } }) {
+  const ref = useRef<Group>(null)
+  const tray = useRef<Group>(null)
+  const [pose, setPose] = useState<'carry' | 'hold' | 'walk' | 'idle'>('carry')
+  const st = useRef({ table: 0, phase: 0, t: 0 })
+  const LANE = 0.35, HOME: [number, number] = [-4.0, LANE]
+  const legs = (i: number): [number, number][] => {
+    const [tx, tz] = TABLES[i]
+    return [HOME, [tx, LANE], [tx, tz - 1.0]]
+  }
+  useFrame((_, dt) => {
+    const g = ref.current
+    if (!g) return
+    const s = st.current
+    s.t += dt
+    const speed = 1.5
+    const walkAlong = (pts: [number, number][]) => {
+      let d = s.t * speed
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, az] = pts[i - 1], [bx, bz] = pts[i]
+        const len = Math.hypot(bx - ax, bz - az)
+        if (d <= len || i === pts.length - 1) {
+          const k = Math.min(1, d / Math.max(1e-6, len))
+          g.position.set(ax + (bx - ax) * k, 0, az + (bz - az) * k)
+          if (len > 1e-3) g.rotation.y = Math.atan2(bx - ax, bz - az)
+          return d > len
+        }
+        d -= len
+      }
+      return true
+    }
+    const next = (phase: number, p: typeof pose) => { s.phase = phase; s.t = 0; setPose(p) }
+    if (s.phase === 0) {                       // carry the bowl out
+      if (walkAlong(legs(s.table))) {
+        next(1, 'hold')
+        served.current[s.table] = performance.now()
+        speak('phuc-vu', pick(['Món của anh chị đây ạ! 🍜', 'Chúc cả nhà ngon miệng!', 'Cẩn thận nóng nha!']))
+        const [tx, tz] = TABLES[s.table]
+        setTimeout(() => speak(`an-${tx}-${tz}-0`, pick(['Cảm ơn em nhé! 😋', 'Thơm quá trời!', 'Nhìn là thấy đói rồi'])), 1300)
+      }
+    } else if (s.phase === 1) {                // set it down
+      if (s.t > 1.8) next(2, 'walk')
+    } else if (s.phase === 2) {                // back to the cart
+      if (walkAlong([...legs(s.table)].reverse())) {
+        next(3, 'idle')
+        speak('dau-bep', pick(['Phở bò tái nạm ra đây! 🍜', 'Bún chả xong rồi!', 'Bàn kế tiếp nè!']))
+      }
+    } else if (s.t > 2.6) {                    // pick up the next order
+      s.table = (s.table + 1) % TABLES.length
+      next(0, 'carry')
+    }
+    if (tray.current) tray.current.visible = s.phase <= 1 && !(s.phase === 1 && s.t > 0.9)
+  })
+  return (
+    <group ref={ref} position={[HOME[0], 0, HOME[1]]}>
+      <ChibiHuman pos={[0, 0, 0]} role="guest" action={pose} name="phuc-vu" voice="waiter" shirtColor="#F8FAFC" pantsColor="#111827" hair="bun" />
+      <group ref={tray} position={[0, 1.0, 0.42]}>
+        <mesh material={M.metal}><cylinderGeometry args={[0.2, 0.2, 0.02, 20]} /></mesh>
+        <mesh position={[0, 0.05, 0]} material={M.white}><cylinderGeometry args={[0.11, 0.07, 0.09, 16]} /></mesh>
+        <mesh position={[0, 0.095, 0]} rotation-x={-Math.PI / 2} material={tint('#E9B65C', 0.5)}><circleGeometry args={[0.095, 16]} /></mesh>
+      </group>
+    </group>
+  )
+}
+
 function RoboBistro() {
   const setDistrict = useUI(s => s.setDistrict)
+  const served = useRef(TABLES.map(() => -1e9))
   return (
     <group position={BISTRO_POS} onDoubleClick={e => { e.stopPropagation(); setDistrict('bistro') }}>
       <Plaza w={16} d={14} color="#D9D4CB" repeat={1.2} />
@@ -518,14 +629,16 @@ function RoboBistro() {
       <ShopHouse x={5.2} facade="#F4C7B8" sign="CÀ PHÊ AI" sub="Cà phê muối · Bạc xỉu" signBg="#3F2A1E" awningA="#8B5E3C" />
       <StringLights />
       <PhoCart position={[-5.0, 0, 0.6]} />
-      <ChibiHuman pos={[-5.0, 0, -0.1]} rot={0} role="chef" action="idle" name="dau-bep" />
+      <ChibiHuman pos={[-5.0, 0, -0.1]} rot={0} role="chef" action="idle" name="dau-bep" voice="chef" />
       <PlasticSet x={-2.6} z={2.2} people={3} />
       <PlasticSet x={0.2} z={1.4} people={2} />
       <PlasticSet x={2.9} z={2.3} people={4} />
       <PlasticSet x={5.4} z={1.0} people={2} />
+      <ServedDishes served={served} />
+      <Waiter served={served} />
       {['#E11D48', '#111827', '#F8FAFC', '#2563EB', '#16A34A'].map((c, i) => <Scooter key={i} x={-6 + i * 1.1} z={5.4} rot={0.25} c={c} />)}
       <Tree x={6.8} z={5.5} s={0.85} />
-      <ChibiHuman pos={[3.6, 0, 5.2]} rot={-0.6} role="guest" action="walk" name="khach-di-bo" shirtColor="#F59E0B" />
+      <ChibiHuman pos={[3.6, 0, 5.2]} rot={-0.6} role="guest" action="walk" name="khach-di-bo" shirtColor="#F59E0B" voice="walker" />
     </group>
   )
 }
@@ -575,6 +688,36 @@ function Speaker({ x, z }: { x: number; z: number }) {
   )
 }
 
+/** ♪ ♫ notes rising from the stage, pink and cyan */
+function MusicNotes() {
+  const notes = useMemo(() => Array.from({ length: 10 }, (_, i) => {
+    const c = document.createElement('canvas')
+    c.width = c.height = 64
+    const g = c.getContext('2d')!
+    g.fillStyle = i % 2 ? '#FF6BD6' : '#5BE7FF'
+    g.font = 'bold 52px "Segoe UI Symbol", "Segoe UI", sans-serif'
+    g.textAlign = 'center'
+    g.textBaseline = 'middle'
+    g.fillText(i % 3 ? '♪' : '♫', 32, 34)
+    const tex = new CanvasTexture(c)
+    tex.colorSpace = SRGBColorSpace
+    return { mat: new SpriteMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false }), x: (i % 5 - 2) * 0.9, phase: i / 10 }
+  }), [])
+  const refs = useRef<(Sprite | null)[]>([])
+  useFrame(state => {
+    const t = state.clock.elapsedTime
+    notes.forEach((n, i) => {
+      const s = refs.current[i]
+      if (!s) return
+      const k = (t * 0.35 + n.phase) % 1
+      s.position.set(n.x + Math.sin(t * 2 + i) * 0.25, 1.4 + k * 2.6, Math.cos(t + i) * 0.2)
+      s.scale.setScalar(0.35 + k * 0.25)
+      n.mat.opacity = Math.min(1, k * 5) * (1 - k)
+    })
+  })
+  return <group position={[0, 0, -2.5]}>{notes.map((n, i) => <sprite key={i} ref={el => { refs.current[i] = el }} material={n.mat} />)}</group>
+}
+
 function NeonClub() {
   const setDistrict = useUI(s => s.setDistrict)
   const beams = useRef<Group>(null)
@@ -608,18 +751,22 @@ function NeonClub() {
         </group>
       ))}
       <mesh position={[3.6, 0.75, 1.4]} rotation-z={PI / 2} material={tint('#9B1B30', 0.6)}><cylinderGeometry args={[0.03, 0.03, 2.4, 8]} /></mesh>
-      <ChibiHuman pos={[2.0, 0, 0.5]} rot={0.3} role="guest" action="idle" name="bao-ve" shirtColor="#111827" pantsColor="#111827" hair="short" />
+      <ChibiHuman pos={[2.0, 0, 0.5]} rot={0.3} role="guest" action="idle" name="bao-ve" voice="bouncer" shirtColor="#111827" pantsColor="#111827" hair="short" />
       {[[3.2, 2.1], [4.0, 2.3], [4.8, 2.1]].map(([px, pz], i) => (
-        <ChibiHuman key={i} pos={[px, 0, pz]} rot={PI * 0.85} role="guest" action="idle" name={`hang-${i}`} shirtColor={['#A855F7', '#F43F5E', '#14B8A6'][i]} />
+        <ChibiHuman key={i} pos={[px, 0, pz]} rot={PI * 0.85} role="guest" action="idle" name={`hang-${i}`} voice="queue" shirtColor={['#A855F7', '#F43F5E', '#14B8A6'][i]} />
       ))}
       {/* outdoor stage: LED dance floor, DJ booth, speakers, moving beams */}
       <group position={[-2.4, 0, 2.6]}>
         <DanceFloor />
+        <MusicNotes />
         <group position={[0, 0, -2.5]}>
           <RoundedBox args={[4.2, 0.5, 1.4]} radius={0.05} position={[0, 0.25, 0]} material={tint('#1C1A24', 0.4)} castShadow />
-          <RoundedBox args={[2.2, 0.9, 0.6]} radius={0.04} position={[0, 0.95, 0.25]} material={tint('#2A2735', 0.35)} castShadow />
-          <mesh position={[0, 1.15, 0.56]} material={cyan}><boxGeometry args={[2.0, 0.05, 0.02]} /></mesh>
-          <ChibiHuman pos={[0, 0.5, -0.2]} rot={0} role="dancer" action="dance" name="dj" shirtColor="#0EA5E9" hair="cap" />
+          <Interactive name="Bàn DJ" hint="Bấm để chơi DJ nhịp điệu 🎧" onActivate={() => useUI.setState({ game: 'dj' })}>
+            <RoundedBox args={[2.2, 0.9, 0.6]} radius={0.04} position={[0, 0.95, 0.25]} material={tint('#2A2735', 0.35)} castShadow />
+            <mesh position={[0, 1.15, 0.56]} material={cyan}><boxGeometry args={[2.0, 0.05, 0.02]} /></mesh>
+          </Interactive>
+          <ChibiHuman pos={[0, 0.5, -0.2]} rot={0} role="dancer" action="dance" name="dj" voice="dj" shirtColor="#0EA5E9" hair="cap" />
+          <ChibiHuman pos={[1.25, 0.5, 0.45]} rot={-0.25} role="dancer" action="sing" name="ca-si" voice="singer" shirtColor="#F43F5E" hair="long" />
           <Speaker x={-1.75} z={0} />
           <Speaker x={1.75} z={0} />
           {/* truss with moving beams */}
@@ -634,7 +781,7 @@ function NeonClub() {
           </group>
         </group>
         {[[-1.2, 0.2], [0.4, -0.5], [1.4, 0.6], [-0.3, 1.1], [-2.0, -0.6]].map(([px, pz], i) => (
-          <ChibiHuman key={i} pos={[px, 0.05, pz]} rot={PI + (i - 2) * 0.3} role="dancer" action="dance" name={`dancer-${i}`}
+          <ChibiHuman key={i} pos={[px, 0.05, pz]} rot={PI + (i - 2) * 0.3} role="dancer" action="dance" name={`dancer-${i}`} voice="dancer"
             shirtColor={['#F43F5E', '#8B5CF6', '#F59E0B', '#22D3EE', '#84CC16'][i]} hair={(['long', 'short', 'bun', 'short', 'long'] as const)[i]} />
         ))}
       </group>

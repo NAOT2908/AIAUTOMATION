@@ -4,6 +4,8 @@ import type { DeptId } from './sim/types'
 export type Quality = 'high' | 'low'
 export type District = 'all' | 'robocorp' | 'myoffice' | 'bistro' | 'pagoda' | 'club'
 /** clickable furniture in the RoboCorp office */
+/** mini-games played inside the city */
+export type GameId = 'hub' | 'mo' | 'dj' | 'pho' | 'penalty'
 export type PropId = 'tv' | 'salesTv' | 'coffee' | 'ledger' | 'chargers' | 'stock' | 'suppliers' | 'servers' | 'campaign' | 'truck' | 'lounge'
 
 interface UIState {
@@ -23,6 +25,8 @@ interface UIState {
   hoverProp: { name: string; hint: string } | null
   /** furniture whose info card is open */
   openProp: PropId | null
+  /** open mini-game window */
+  game: GameId | null
   setSpeed: (s: number) => void
   togglePause: () => void
   select: (id: string) => void
@@ -50,6 +54,7 @@ export const useUI = create<UIState>(set => ({
   district: (urlParams?.get('district') as District) || 'all',
   hoverProp: null,
   openProp: (urlParams?.get('prop') as PropId | null) ?? null,
+  game: (urlParams?.get('game') as GameId | null) ?? null,
   setSpeed: speed => set(s => ({ speed, lastSpeed: speed || s.lastSpeed })),
   togglePause: () => set(s => (s.speed ? { speed: 0, lastSpeed: s.speed } : { speed: s.lastSpeed })),
   select: selected => set({ selected }),

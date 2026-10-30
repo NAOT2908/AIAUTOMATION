@@ -8,6 +8,7 @@ export interface SceneTheme {
   road: string
   line: string
   wall: string
+  walk: string
 }
 
 function read(): SceneTheme {
@@ -21,6 +22,7 @@ function read(): SceneTheme {
     road: v('--scene-road', '#CAD4E2'),
     line: v('--scene-line', '#FFFFFF'),
     wall: v('--scene-wall', '#FFFFFF'),
+    walk: v('--scene-walk', '#D8D2C6'),
   }
 }
 
