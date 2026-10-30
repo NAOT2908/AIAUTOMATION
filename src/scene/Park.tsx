@@ -6,6 +6,7 @@ import { CurvedRoof } from './arch'
 import { Box, Pillar } from './Districts'
 import { ChibiHuman } from './Human'
 import { tint } from './materials'
+import { GuestbookBoard } from './GuestbookBoard'
 
 /** the lake park on the west side of the city */
 // between the boulevard (z 14) and the metro (z 46), west of the pagoda: no road crosses it
@@ -148,6 +149,7 @@ export function LakePark() {
       {[[-12.2, -3.8, 1.1], [-9.5, 6.6, 1], [2, 9.0, 1.15], [11.8, 3.6, 1], [-2, -9.2, 0.95], [13.0, -2.6, 0.9]].map(([x, z, s], i) => <Willow key={i} x={x} z={z} s={s} />)}
       {[[-6, 7.6, Math.PI], [5.5, 7.7, Math.PI], [-11.6, 0.5, Math.PI / 2], [0, -8.2, 0]].map(([x, z, r], i) => <Bench key={i} x={x} z={z} rot={r} />)}
 
+      <GuestbookBoard position={[-7.4, 0, -9.0]} />
       <SwanBoat phase={0} />
       <SwanBoat phase={Math.PI} color="#FDE68A" />
 

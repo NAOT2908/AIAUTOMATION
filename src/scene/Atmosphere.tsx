@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import {
-  AdditiveBlending, Color, DirectionalLight, HemisphereLight, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial,
+  AdditiveBlending, Color, DirectionalLight, Fog, HemisphereLight, InstancedMesh, MeshBasicMaterial, MeshStandardMaterial,
   Object3D, PMREMGenerator, type Scene,
 } from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
@@ -58,8 +58,10 @@ export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
     const pmrem = new PMREMGenerator(gl)
     const env = pmrem.fromScene(new RoomEnvironment(), 0.04).texture
     scene.environment = env
-    return () => { scene.environment = null; env.dispose(); pmrem.dispose() }
-  }, [gl, scene])
+    // aerial perspective: the far skyline fades into the sky colour
+    scene.fog = new Fog(bg, 250, 400)
+    return () => { scene.environment = null; scene.fog = null; env.dispose(); pmrem.dispose() }
+  }, [gl, scene]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useFrame((_, dt) => {
     const speed = useUI.getState().speed
@@ -88,6 +90,7 @@ export function Atmosphere({ dark, bg }: { dark: boolean; bg: string }) {
     scene.environmentIntensity = (0.35 - 0.28 * n) * (1 - r * 0.3)
     if (scene.background instanceof Color) {
       scene.background.copy(dayBg).lerp(SKY_RAIN, r * 0.45 * (1 - n)).lerp(SKY_NIGHT, n)
+      if (scene.fog instanceof Fog) scene.fog.color.copy(scene.background)
     }
   })
 

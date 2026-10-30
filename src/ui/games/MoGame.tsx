@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { speak } from '../../scene/chatter'
+import { submitScore } from '../../net/online'
 
 const KEY = 'robocity_cong_duc'
 const GAINS = [
@@ -50,6 +51,7 @@ export function MoGame() {
       try { localStorage.setItem(KEY, String(n)) } catch { /* private mode: keep it in memory */ }
       if (MILESTONES[n]) { setNote(MILESTONES[n]); sound.playBell(0.45) }
       if (n % 12 === 0) speak('tri-khach', 'Nam mô A Di Đà Phật 🙏')
+      if (n % 54 === 0) submitScore('mo', n)
       return n
     })
     const id = ++seq.current

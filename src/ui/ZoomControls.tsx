@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { world } from '../scene/Atmosphere'
 import { roofControl } from '../scene/Districts'
+import { startFire, startFireworks } from '../scene/Services'
 import { camNav } from '../scene/Office'
 import { Icon } from './Icon'
 import { useUI } from '../store'
@@ -39,6 +40,8 @@ export function ZoomControlsOverlay() {
           onClick={() => { const m = RAIN_NEXT[rain]; world.rainMode = m; setRain(m) }}>{RAIN_LABEL[rain]}</button>
         <button className="pc-btn" title="Mở/đóng mái chính điện chùa để nhìn tượng Phật bên trong (tự đóng sau 20 giây)"
           onClick={() => roofControl.toggle(roofControl.isOpen)}>🏯 Mái chùa</button>
+        <button className="pc-btn" title="Một căn nhà ở phố ẩm thực bốc cháy, xe cứu hỏa sẽ tới" onClick={() => startFire()}>🚒 Báo cháy</button>
+        <button className="pc-btn" title="Bắn pháo hoa (đẹp nhất vào ban đêm)" onClick={() => startFireworks(20)}>🎆 Pháo hoa</button>
         <button className="pc-btn game-launch" onClick={() => useUI.setState({ game: 'hub' })}>🎮 Trò chơi</button>
       </div>
       {hint && (

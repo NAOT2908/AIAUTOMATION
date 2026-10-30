@@ -220,6 +220,44 @@ class SoundManager {
     src.connect(f); f.connect(g); g.connect(out); src.start(now); src.stop(now + dur + 0.02)
   }
 
+  /** fire-engine siren: two alternating tones */
+  public playSiren(seconds = 3) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const now = this.ctx.currentTime
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain()
+    o.type = 'square'
+    for (let k = 0; k < seconds * 2; k++) {
+      o.frequency.setValueAtTime(k % 2 ? 620 : 860, now + k * 0.5)
+    }
+    g.gain.setValueAtTime(0.0001, now)
+    g.gain.exponentialRampToValueAtTime(0.09, now + 0.1)
+    g.gain.setValueAtTime(0.09, now + seconds - 0.3)
+    g.gain.exponentialRampToValueAtTime(0.0001, now + seconds)
+    o.connect(g); g.connect(this.sfxGain)
+    o.start(now); o.stop(now + seconds + 0.05)
+  }
+
+  /** firework burst: a low thump and a crackle */
+  public playBoom(volume = 1) {
+    if (this.sfxMuted) return
+    this.resume()
+    if (!this.ctx || !this.sfxGain) return
+    const buf = this.noiseBuffer()
+    if (!buf) return
+    const now = this.ctx.currentTime
+    const src = this.ctx.createBufferSource(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain()
+    src.buffer = buf
+    f.type = 'lowpass'
+    f.frequency.setValueAtTime(900, now)
+    f.frequency.exponentialRampToValueAtTime(120, now + 0.6)
+    g.gain.setValueAtTime(0.7 * volume, now)
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.7)
+    src.connect(f); f.connect(g); g.connect(this.sfxGain)
+    src.start(now); src.stop(now + 0.72)
+  }
+
   /** short rising "ding" for a win, falling "bwomp" for a fail */
   public playResult(win: boolean) {
     if (this.sfxMuted) return

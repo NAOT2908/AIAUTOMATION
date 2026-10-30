@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { speak } from '../../scene/chatter'
+import { submitScore } from '../../net/online'
 
 const LANES = [
   { key: 'KeyD', label: 'D', color: '#FF5FD2', voice: 'kick' as const },
@@ -139,6 +140,7 @@ export function DjGame() {
           const s = statsRef.current, total = g.notes.length
           const acc = (s.perfect + s.good * 0.6) / total
           sound.playResult(acc >= 0.55)
+          submitScore('dj', s.score)
           speak('dj', acc >= 0.78 ? 'Đỉnh của chóp! 🔥' : 'Cũng được đó bạn ơi! 🎶')
         }
       }

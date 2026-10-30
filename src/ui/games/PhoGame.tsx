@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { sound } from '../../audio/sound'
 import { speak } from '../../scene/chatter'
+import { submitScore } from '../../net/online'
 
 interface Item { id: string; icon: string; name: string; decoy?: boolean }
 const ITEMS: Item[] = [
@@ -61,6 +62,7 @@ export function PhoGame() {
       setCoins(c => {
         const n = c + tip
         if (n > best) { setBest(n); try { localStorage.setItem(BEST, String(n)) } catch { /* ignore */ } }
+        if (n >= 100 && Math.floor(n / 100) > Math.floor(c / 100)) submitScore('pho', n)
         return n
       })
       setServed(s => s + 1)

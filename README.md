@@ -32,3 +32,29 @@ Mọi quyết định "thông minh" đều đi qua interface `Brain` trong `src/
 ## Công nghệ
 
 Vite · React 19 · TypeScript · three.js · @react-three/fiber · drei · postprocessing (N8AO, Bloom) · zustand
+
+## Chế độ online (sổ lưu bút & bảng xếp hạng chung)
+
+Mặc định sổ lưu bút và bảng xếp hạng lưu **trên máy người chơi**. Muốn mọi người cùng thấy lời nhắn và điểm của nhau:
+
+1. Tạo project miễn phí tại [supabase.com](https://supabase.com).
+2. Mở **SQL Editor**, chạy toàn bộ file [`supabase/schema.sql`](supabase/schema.sql) (tạo bảng `guestbook`, `scores` và quyền chỉ-đọc-và-thêm).
+3. Vào **Project Settings → API**, lấy `Project URL` và khóa `anon public`.
+4. Chạy local: tạo file `.env.local` ở thư mục gốc:
+   ```
+   VITE_SUPABASE_URL=https://xxxx.supabase.co
+   VITE_SUPABASE_ANON_KEY=eyJ...
+   ```
+5. Deploy GitHub Pages: vào repo → **Settings → Secrets and variables → Actions** → thêm 2 secret cùng tên `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`, rồi push lại.
+
+Khóa `anon` được thiết kế để công khai trên trang web; dữ liệu được bảo vệ bằng Row Level Security trong `schema.sql` (khách chỉ đọc và thêm, không sửa/xóa được).
+
+## Tham số URL tiện dụng
+
+| Tham số | Ví dụ | Tác dụng |
+|---|---|---|
+| `district` | `?district=pagoda` | Mở thẳng một khu |
+| `cam` | `?cam=0.9,33.6,4.6` | Camera tại x, z và mức zoom |
+| `time`, `rain` | `?time=night&rain=on` | Đêm / mưa |
+| `event` | `?event=fireworks` | Pháo hoa (hoặc `fire`) ngay khi mở |
+| `game` | `?game=mo` | Mở game (`hub`, `mo`, `dj`, `pho`, `penalty`, `guestbook`, `scores`) |

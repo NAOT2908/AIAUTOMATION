@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { sound } from '../../audio/sound'
 import { speak } from '../../scene/chatter'
+import { submitScore } from '../../net/online'
 
 /** goal zones: columns left/centre/right × rows top/bottom */
 const ZONES = [0, 1, 2, 3, 4, 5]
@@ -32,8 +33,12 @@ export function PenaltyGame() {
     const target = zoneXY(zone)
     setBall(miss ? { x: target.x + (col === 0 ? -14 : 14), y: target.y - 26 } : target)
     setTimeout(() => {
-      const r = miss ? 'miss' : saved ? 'save' : 'goal'
-      setShots(s => [...s, r])
+      const r: 'goal' | 'save' | 'miss' = miss ? 'miss' : saved ? 'save' : 'goal'
+      setShots(s => {
+        const all = [...s, r]
+        if (all.length === SHOTS) submitScore('penalty', all.filter(x => x === 'goal').length)
+        return all
+      })
       const pool = r === 'goal' ? GOAL_LINES : r === 'save' ? SAVE_LINES : MISS_LINES
       setLine(pool[Math.floor(Math.random() * pool.length)])
       sound.playResult(r === 'goal')

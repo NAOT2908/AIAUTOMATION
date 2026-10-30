@@ -6,6 +6,7 @@ import { DjGame } from './DjGame'
 import { MoGame } from './MoGame'
 import { PenaltyGame } from './PenaltyGame'
 import { PhoGame } from './PhoGame'
+import { Guestbook, Leaderboards } from './Social'
 
 const GAMES: { id: Exclude<GameId, 'hub'>; icon: string; title: string; place: string; hint: string; at: [number, number] }[] = [
   { id: 'mo', icon: '🪵', title: 'Gõ mõ tích công đức', place: 'Chùa Khánh An · bấm vào mõ', hint: 'Gõ mõ, nhận công đức, xin quẻ vui', at: [-1, 33] },
@@ -17,6 +18,10 @@ const GAMES: { id: Exclude<GameId, 'hub'>; icon: string; title: string; place: s
 function Hub() {
   return (
     <div className="game-hub">
+      <div className="hub-social">
+        <button className="pc-btn" onClick={() => useUI.setState({ game: 'guestbook' })}>📖 Sổ lưu bút</button>
+        <button className="pc-btn" onClick={() => useUI.setState({ game: 'scores' })}>🏆 Bảng xếp hạng</button>
+      </div>
       {GAMES.map(g => (
         <div key={g.id} className="hub-card">
           <span className="hub-icon">{g.icon}</span>
@@ -44,13 +49,14 @@ export function GameModal() {
   }, [])
   if (!game) return null
   const meta = GAMES.find(g => g.id === game)
+  const title = meta ? `${meta.icon} ${meta.title}` : game === 'guestbook' ? '📖 Sổ lưu bút RoboCity' : game === 'scores' ? '🏆 Bảng xếp hạng' : '🎮 Trò chơi trong RoboCity'
   const close = () => useUI.setState({ game: null })
   return (
     <div className="game-backdrop" onPointerDown={e => { if (e.target === e.currentTarget) close() }}>
-      <section className={`card game-window game-${game}`} role="dialog" aria-label={meta?.title ?? 'Trò chơi'}>
+      <section className={`card game-window game-${game}`} role="dialog" aria-label={title}>
         <header>
           {game !== 'hub' && <button className="pc-close" onClick={() => useUI.setState({ game: 'hub' })} aria-label="Danh sách trò chơi">‹</button>}
-          <h2>{meta ? `${meta.icon} ${meta.title}` : '🎮 Trò chơi trong RoboCity'}</h2>
+          <h2>{title}</h2>
           <button className="pc-close" onClick={close} aria-label="Đóng"><Icon name="close" size={16} /></button>
         </header>
         <div className="game-body">
@@ -59,6 +65,8 @@ export function GameModal() {
           {game === 'dj' && <DjGame />}
           {game === 'pho' && <PhoGame />}
           {game === 'penalty' && <PenaltyGame />}
+          {game === 'guestbook' && <Guestbook />}
+          {game === 'scores' && <Leaderboards />}
         </div>
       </section>
     </div>

@@ -10,6 +10,7 @@ export type Voice =
   | 'dj' | 'singer' | 'dancer' | 'queue' | 'bouncer'
   | 'diner' | 'chef' | 'waiter'
   | 'walker'
+  | 'vendor'
   | 'park' | 'fan' | 'player' | 'kid' | 'teacher' | 'seller' | 'buyer' | 'rider'
 
 export interface Speaker {
@@ -82,6 +83,7 @@ export const SCRIPTS: Record<Voice, string[]> = {
   ],
   chef: ['Phở bò tái nạm ra đây! 🍜', 'Bún chả xong rồi!', 'Bàn nào gọi gyoza?', 'Nước dùng hầm 12 tiếng đấy!', 'Thêm hành, thêm rau thơm nha!'],
   waiter: ['Món của anh chị đây ạ! 🍜', 'Chúc cả nhà ngon miệng!', 'Dạ, có ngay ạ!', 'Cẩn thận nóng nha!'],
+  vendor: ['Ai mua xôi không…', 'Bánh mì nóng giòn đây! 🥖', 'Chè đậu đỏ, chè thập cẩm đây!', 'Cốm Vòng thơm ngon đây!', 'Hoa quả tươi, mua đi cô ơi!'],
   park: ['Hít thở thật sâu… 🌿', 'Hồ hôm nay đẹp quá', 'Đi đạp vịt không em? 🦢', 'Chạy thêm một vòng nữa!', 'Gió hồ mát ghê', 'Chụp tấm ảnh trên cầu đỏ nha 📸'],
   fan: ['Vàooo!!! ⚽', 'Sút đi!', 'Hay quá trời!', 'Trọng tài ơi!!', 'Cố lên đội xanh! 💙', 'Đội đỏ vô địch! ❤️'],
   player: ['Chuyền đây!', 'Sút!', 'Theo người!', 'Lên bóng nhanh!', 'Gooool! ⚽'],

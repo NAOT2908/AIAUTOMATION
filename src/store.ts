@@ -5,7 +5,7 @@ export type Quality = 'high' | 'low'
 export type District = 'all' | 'robocorp' | 'myoffice' | 'bistro' | 'pagoda' | 'club'
 /** clickable furniture in the RoboCorp office */
 /** mini-games played inside the city */
-export type GameId = 'hub' | 'mo' | 'dj' | 'pho' | 'penalty'
+export type GameId = 'hub' | 'mo' | 'dj' | 'pho' | 'penalty' | 'guestbook' | 'scores'
 export type PropId = 'tv' | 'salesTv' | 'coffee' | 'ledger' | 'chargers' | 'stock' | 'suppliers' | 'servers' | 'campaign' | 'truck' | 'lounge'
 
 interface UIState {
@@ -45,7 +45,7 @@ export const useUI = create<UIState>(set => ({
   lastSpeed: 1,
   selected: 'ceo',
   filter: 'all',
-  quality: 'high',
+  quality: urlParams?.get('quality') === 'low' ? 'low' : 'high',
   ready: false,
   tick: 0,
   zenMode: urlParams ? urlParams.get('zen') === '1' || urlParams.get('zen') === 'true' : false,

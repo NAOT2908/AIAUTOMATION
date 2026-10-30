@@ -26,7 +26,7 @@ export type HumanAction =
   | 'hold'
   /** singing into a microphone, swaying */
   | 'sing'
-export type Hair = 'short' | 'bun' | 'long' | 'bald' | 'cap'
+export type Hair = 'short' | 'bun' | 'long' | 'bald' | 'cap' | 'nonla'
 
 interface HumanProps {
   pos: [number, number, number]
@@ -46,6 +46,10 @@ interface HumanProps {
   voice?: Voice
   /** people at the same table talk to each other */
   table?: string
+  /** áo dài: a long tunic with front and back panels over white trousers */
+  outfit?: 'aodai'
+  /** a street vendor's shoulder pole with two baskets */
+  carryPole?: boolean
 }
 
 /* shared geometry: every person reuses the same handful of buffers */
@@ -75,7 +79,7 @@ function hash(s: string) { let h = 0; for (let i = 0; i < s.length; i++) h = (h 
  */
 export function ChibiHuman({
   pos, role, rot = 0, name = '', skinTone = '#F3C9A5', shirtColor = '#2563EB', pantsColor = '#334155',
-  hair, action = 'idle', seat = 0.45, beat = 0.9, voice, table,
+  hair, action = 'idle', seat = 0.45, beat = 0.9, voice, table, outfit, carryPole,
 }: HumanProps) {
   const root = useRef<Group>(null)
   const hips = useRef<Group>(null)
@@ -103,7 +107,7 @@ export function ChibiHuman({
     return {
       skin: tint(skinTone, 0.6),
       top: tint(robed ? robe : role === 'chef' ? '#F8FAFC' : shirtColor, 0.75),
-      bottom: tint(robed ? robe : pantsColor, 0.8),
+      bottom: tint(robed ? robe : outfit === 'aodai' ? '#F8F6F0' : pantsColor, 0.8),
       hair: tint(HAIR, 0.85),
       shoe: tint(robed ? '#3B2A20' : '#22262E', 0.6),
       eye: tint('#15171C', 0.25),
@@ -111,7 +115,7 @@ export function ChibiHuman({
       blush: tint('#F6A5A5', 0.9),
       heart: glow('#FF4D6D', 2.6),
     }
-  }, [role, robed, seed, skinTone, shirtColor, pantsColor])
+  }, [role, robed, seed, skinTone, shirtColor, pantsColor, outfit])
 
   const seated = action === 'meditate' || action === 'chant' || action === 'sit' || action === 'eat'
   const lotus = action === 'meditate' || action === 'chant'
@@ -278,6 +282,9 @@ export function ChibiHuman({
           ? <mesh material={mats.bottom} position={[0, -0.04, 0.12]} scale={[0.36, 0.11, 0.3]} castShadow><sphereGeometry args={[1, 20, 12]} /></mesh>
           : !seated && <mesh material={mats.bottom} position={[0, -0.2, 0]} castShadow><cylinderGeometry args={[0.2, 0.27, 0.46, 20]} /></mesh>)}
 
+        {outfit === 'aodai' && !seated && [-1, 1].map(s => (
+          <mesh key={s} material={mats.top} position={[0, -0.24, s * 0.14]} castShadow><boxGeometry args={[0.36, 0.52, 0.025]} /></mesh>
+        ))}
         <group ref={upper}>
           {/* torso */}
           <mesh material={mats.top} position={[0, 0.2, 0]} castShadow>
@@ -316,6 +323,11 @@ export function ChibiHuman({
               <mesh geometry={G.hairCap} material={mats.hair} position={[0, 0.02, -0.02]} rotation-x={-0.25} castShadow />
               <mesh material={mats.hair} position={[0, -0.18, -0.12]} scale={[1, 1.4, 0.55]} castShadow><sphereGeometry args={[0.24, 16, 12]} /></mesh>
             </>)}
+            {style === 'nonla' && (<>
+              <mesh geometry={G.hairCap} material={mats.hair} position={[0, 0.02, -0.02]} rotation-x={-0.25} castShadow />
+              <mesh material={mats.hair} position={[0, -0.18, -0.12]} scale={[1, 1.4, 0.55]} castShadow><sphereGeometry args={[0.24, 16, 12]} /></mesh>
+              <mesh material={tint('#E6CF8E', 0.85)} position={[0, 0.3, 0]} castShadow><coneGeometry args={[0.46, 0.26, 28]} /></mesh>
+            </>)}
             {style === 'cap' && (<>
               <mesh material={M.white} position={[0, 0.24, 0]} castShadow><cylinderGeometry args={[0.2, 0.22, 0.26, 18]} /></mesh>
               <mesh material={M.white} position={[0, 0.38, 0]} scale={[1, 0.55, 1]}><sphereGeometry args={[0.24, 16, 10]} /></mesh>
@@ -324,6 +336,20 @@ export function ChibiHuman({
         </group>
       </group>
 
+      {carryPole && (
+        <group position={[0.2, 0.98, 0]}>
+          <mesh rotation-x={Math.PI / 2} material={tint('#B08A4E', 0.8)} castShadow><cylinderGeometry args={[0.025, 0.025, 1.7, 6]} /></mesh>
+          {[-0.8, 0.8].map(x => (
+            <group key={x} position={[0, 0, x]}>
+              {[-1, 1].map(s => <mesh key={s} position={[s * 0.1, -0.33, 0]} material={tint('#7A5A33', 0.9)}><cylinderGeometry args={[0.006, 0.006, 0.66, 4]} /></mesh>)}
+              <mesh position={[0, -0.72, 0]} material={tint('#A07C46', 0.9)} castShadow><cylinderGeometry args={[0.2, 0.15, 0.2, 14]} /></mesh>
+              {[0, 1, 2].map(k => (
+                <mesh key={k} position={[Math.cos(k * 2.1) * 0.08, -0.58, Math.sin(k * 2.1) * 0.08]} material={tint(x < 0 ? '#F59E0B' : '#84CC16', 0.6)}><sphereGeometry args={[0.07, 8, 6]} /></mesh>
+              ))}
+            </group>
+          ))}
+        </group>
+      )}
       {greet && <mesh material={mats.heart} position={[0, 1.75, 0]}><sphereGeometry args={[0.09, 12, 10]} /></mesh>}
     </group>
   )

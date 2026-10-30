@@ -547,7 +547,7 @@ body.hover-prop .scene canvas { cursor: pointer; }
 
 .world-controls {
   position: absolute; z-index: 45; left: var(--gutter); bottom: calc(var(--feed-h) + 28px + 130px);
-  display: flex; flex-direction: column; gap: 6px; padding: 6px; border-radius: 12px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 5px; max-height: calc(100% - var(--panel-top) - var(--feed-h) - 170px); overflow: auto; padding: 6px; border-radius: 12px;
   background: var(--card-solid); border: 1px solid var(--line); box-shadow: var(--shadow);
 }
 .world-controls .pc-btn { text-align: left; }
@@ -649,6 +649,31 @@ body.hover-prop .scene canvas { cursor: pointer; }
 .pen-keeper { position: absolute; bottom: 4%; font-size: 30px; transition: left 0.45s ease-out, transform 0.45s ease-out; white-space: nowrap; }
 .pen-ball { position: absolute; left: 50%; top: 115%; transform: translate(-50%, -50%) scale(1.2); font-size: 30px; transition: left 0.5s ease-out, top 0.5s ease-out, transform 0.5s ease-out; }
 .pen-line { margin: 0; font-weight: 700; text-align: center; }
+
+/* ---------------- guestbook & leaderboards ---------------- */
+.hub-social { display: flex; gap: 8px; }
+.hub-social .pc-btn { flex: 1; padding: 9px; font-size: 13px; }
+.social { display: flex; flex-direction: column; gap: 12px; }
+.social-mode { margin: 0; font-size: 12px; padding: 7px 10px; border-radius: 9px; background: var(--card-2); color: var(--muted); }
+.social-mode.on { background: var(--good-soft); color: var(--good); }
+.social-name { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.social-name input, .gb-form textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--card-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; resize: vertical; }
+.social-name input:focus-visible, .gb-form textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gb-form { display: flex; flex-direction: column; gap: 8px; }
+.gb-emojis { display: flex; flex-wrap: wrap; gap: 4px; }
+.gb-emojis .pc-btn { padding: 4px 8px; font-size: 16px; }
+.gb-send { display: flex; align-items: center; justify-content: space-between; }
+.gb-send small { color: var(--muted); }
+.gb-err { margin: 0; color: var(--bad); font-size: 12.5px; }
+.gb-list, .lb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow: auto; }
+.gb-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; padding: 8px; border-radius: 10px; background: var(--card-2); }
+.gb-emoji { font-size: 24px; text-align: center; }
+.gb-list li.muted, .lb-list li.muted { display: block; }
+.gb-list p { margin: 2px 0 0; overflow-wrap: anywhere; }
+.gb-list small { color: var(--muted); }
+.lb-list li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--card-2); }
+.lb-rank { font-size: 18px; text-align: center; font-weight: 700; }
+.lb-score { font-family: var(--font-mono); font-weight: 700; }
 
 /* ---------------- clickable furniture ---------------- */
 .prop-tip {

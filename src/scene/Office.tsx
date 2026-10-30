@@ -10,6 +10,9 @@ import { Atmosphere } from './Atmosphere'
 import { ChargingStation, FootballPitch, Market, School } from './Civic'
 import { RoboCityCampus } from './Districts'
 import { Metro } from './Metro'
+import { Downtown } from './Downtown'
+import { Mountains } from './Mountains'
+import { FireIncident, FireStation, Fireworks, Hospital, PoliceStation } from './Services'
 import { LakePark } from './Park'
 import { Pedestrians, Sky } from './CityLife'
 import { Effects, Packets, Truck } from './Fx'
@@ -102,7 +105,7 @@ export const camNav = {
   zoomBy: (_factor: number) => {},
   reset: () => {},
 }
-const BOUNDS = { minX: -54, maxX: 58, minZ: -52, maxZ: 54 }
+const BOUNDS = { minX: -54, maxX: 58, minZ: -96, maxZ: 54 }
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
 
 /**
@@ -311,6 +314,13 @@ export function Office() {
       <School />
       <Market />
       <ChargingStation />
+      <Downtown />
+      <Mountains />
+      <FireStation />
+      <PoliceStation />
+      <Hospital />
+      <FireIncident />
+      <Fireworks />
       </group>
       <LabelSync />
       <CitySpeech />

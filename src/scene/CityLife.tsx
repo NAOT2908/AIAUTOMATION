@@ -26,6 +26,8 @@ interface Route {
   speed?: number
   /** loops (joggers) never vanish into a door */
   loop?: boolean
+  /** street vendor with a shoulder pole */
+  vendor?: boolean
 }
 
 const ROUTES: Route[] = [
@@ -39,6 +41,9 @@ const ROUTES: Route[] = [
   { pts: [[16.2, -3.5], [16.2, -13.2], [20.8, -13.2], [20.8, -16.0]], arrive: 2, leave: 1 },
   // RoboCorp visitors: over the zebra crossing to the loading bay
   { pts: [[16.2, 11.4], [9.0, 11.4], [8.2, 10.6], [8.2, 6.6]], arrive: 2, leave: 1 },
+  // street vendors (gánh hàng rong) strolling the sidewalks
+  { pts: [[-40, 11.5], [44, 11.5]], arrive: 1, leave: 1, speed: 0.75, loop: true, vendor: true },
+  { pts: [[15.9, -40], [15.9, 60]], arrive: 1, leave: 0, speed: 0.7, loop: true, vendor: true },
   // joggers on the boulevard's south sidewalk
   { pts: [[-30, 16.7], [46, 16.7]], arrive: 2, leave: 1, speed: 2.4, loop: true },
 ]
@@ -76,7 +81,9 @@ function Walker({ route, reverse, delay, idx }: { route: Route; reverse: boolean
   })
   return (
     <group ref={ref} visible={false}>
-      <ChibiHuman pos={[0, 0, 0]} role={route.role ?? 'guest'} action="walk" name={`walker-${idx}-${reverse ? 'r' : 'a'}`} voice={route.role === 'buddhist' ? 'buddhist' : 'walker'}
+      <ChibiHuman pos={[0, 0, 0]} role={route.role ?? 'guest'} action="walk" name={`walker-${idx}-${reverse ? 'r' : 'a'}`}
+        outfit={route.vendor || idx % 5 === 0 ? 'aodai' : undefined} hair={route.vendor || idx % 5 === 0 || idx % 7 === 3 ? 'nonla' : undefined}
+        carryPole={route.vendor} voice={route.vendor ? 'vendor' : route.role === 'buddhist' ? 'buddhist' : 'walker'}
         shirtColor={SHIRTS[idx % SHIRTS.length]} pantsColor={PANTS[idx % PANTS.length]} />
     </group>
   )
